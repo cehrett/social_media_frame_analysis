@@ -1,7 +1,7 @@
 # Import libraries
 import os
 
-def prepare_to_load_model(username, 
+def prepare_to_load_model(username=None, 
                           service='openai',
                           api_key_loc='./openai_api_key.txt'
                          ):

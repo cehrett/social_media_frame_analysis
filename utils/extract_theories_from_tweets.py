@@ -139,17 +139,20 @@ def process_tweets(input_path,
         df.to_csv(intermediate_path, index=False, quoting=csv.QUOTE_ALL)
 
         print(f'Processed {chunks[i+1]} rows...')
-
+    
+    # import pdb; pdb.set_trace()
     # If there are any rows left over, process them
-    if unique_df.shape[0] % chunk_size != 0:
-        results_dict_chunk = unique_df.iloc[chunks[-1]:].progress_apply(lambda row: {row['normalized_text']: get_results_from_row(row, 'normalized_text', model, labeled_df)}, axis=1).values
-        for res in results_dict_chunk:
-            results_dict.update(res)
-        mask = df['frames'].isnull()
-        df.loc[mask, 'frames'] = df.loc[mask, 'normalized_text'].map(results_dict)
+    results_dict_chunk = unique_df.iloc[chunks[-1]:].progress_apply(lambda row: {row['normalized_text']: get_results_from_row(row, 'normalized_text', model, labeled_df)}, axis=1).values
+
+    for res in results_dict_chunk:
+        results_dict.update(res)
+
+    mask = df['frames'].isnull()
+    df.loc[mask, 'frames'] = df.loc[mask, 'normalized_text'].map(results_dict)
 
     # Save final results
     # Drop the 'normalized_text' column since not needed anymore
+    # pdb.set_trace()
     df.drop(columns=['normalized_text'], inplace=True)
     df.to_csv(output_path, index=False, quoting=csv.QUOTE_ALL)
     return df

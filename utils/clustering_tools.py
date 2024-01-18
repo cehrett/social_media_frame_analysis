@@ -16,7 +16,7 @@ def current_time():
     return datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 
-def get_theories_and_embeddings_using_dict(df, data_dict, theory_col='results', id_col='tweetid'):
+def get_theories_and_embeddings_using_dict(df, data_dict, theory_col='frames', id_col='id'):
     """
     Retrieve theories and their corresponding embeddings from a dataframe and a dictionary.
     
@@ -45,7 +45,7 @@ def get_theories_and_embeddings_using_dict(df, data_dict, theory_col='results', 
                 
     # Return the results as a dictionary
     return({
-        'theories': theories_with_duplicates,
+        'frames': theories_with_duplicates,
         'embeddings': embeddings_with_duplicates,
         'id': ids_with_duplicates  # Add the IDs to the resulting dictionary
     })
@@ -78,7 +78,7 @@ def perform_clustering(embeddings,
 
     unique_emb_list = list(unique_embeddings.keys())
 
-    umap_model = umap.UMAP(n_components=umap_dim_size, random_state=355)
+    umap_model = umap.UMAP(n_components=umap_dim_size)
     
     # Step 2: Apply UMAP only to the unique embeddings
     reduced_unique_embeddings = umap_model.fit_transform(unique_emb_list)
