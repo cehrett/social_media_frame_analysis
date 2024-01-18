@@ -3,6 +3,7 @@ import csv
 import argparse
 from utils.extract_theories_from_tweets import process_tweets
 
+
 def main():
     parser = argparse.ArgumentParser(description="Process and save tweets.")
     parser.add_argument("input_path", help="Path to the input CSV file.")
@@ -20,21 +21,23 @@ def main():
     labeled_data_path = os.path.join('.','data', 'labeled_data.csv')
     
     try:
-        df_with_theories = process_tweets(input_path=args.input_path, 
-                                          tweet_col=args.tweet_col, 
-                                          intermediate_path=intermediate_path, 
-                                          output_path=output_path, 
-                                          labeled_data_path=labeled_data_path, 
-                                          chunk_size=10,
-                                          raw_csv_or_intermediate=args.raw_csv_or_intermediate,
-                                          api_key_loc=args.api_key_loc
-                                         )
+        df_with_frames = process_tweets(input_path=args.input_path,
+                                        tweet_col=args.tweet_col,
+                                        intermediate_path=intermediate_path, 
+                                        output_path=output_path, 
+                                        labeled_data_path=labeled_data_path, 
+                                        chunk_size=10,
+                                        raw_csv_or_intermediate=args.raw_csv_or_intermediate,
+                                        api_key_loc=args.api_key_loc
+                                       )
         
-        df_with_theories.to_csv(output_path, index=False, quoting=csv.QUOTE_ALL)
+        df_with_frames.to_csv(output_path, index=False, quoting=csv.QUOTE_ALL)
+        os.remove(intermediate_path)
         print(f"Frame extraction completed successfully. Results stored in {output_path}.")
     except Exception as e:
         print(f"An error occurred: {e}")
         print(f"If frames were extracted prior to error, intermediate results are stored in {intermediate_path}.")
+        
 
 if __name__ == "__main__":
     main()
