@@ -42,7 +42,7 @@ def get_results_from_row(row, tweet_col, model, labeled_df):
         narrs = ['ERROR']
 
     clear_output(wait=True)
-    print('TWEET: ', text, '\n', 'THEORY: ', narrs)
+    print('POST: ', text, '\n', 'FRAME: ', narrs)
     time.sleep(0.05) 
     return(narrs)
 
