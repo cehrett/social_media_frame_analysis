@@ -9,7 +9,7 @@ def main():
     parser.add_argument("input_path", help="Path to the input CSV file.")
     parser.add_argument("--results_dir", default='./', help="Directory where results (and intermediate temp file) will be written.")
     parser.add_argument("--labeled_data_path", default='./data/labeled_data.csv', help="Path for labeled data file.")
-    parser.add_argument("--tweet_col", default='text', help="Name of the tweet column.")
+    parser.add_argument("--text_col", default='text', help="Name of the text column.")
     parser.add_argument("--api_key_loc", default='./openai_api_key.txt', help="Location of text file containing OpenAI API key.")
     parser.add_argument("--raw_csv_or_intermediate", default='c', help="Whether to use the input_path data file (c) or an intermediate file (i). Default (c). Only use (i) if previous frame extraction was interrupted before completion.")
     
@@ -22,7 +22,7 @@ def main():
     
     try:
         df_with_frames = process_tweets(input_path=args.input_path,
-                                        tweet_col=args.tweet_col,
+                                        tweet_col=args.text_col,
                                         intermediate_path=intermediate_path, 
                                         output_path=output_path, 
                                         labeled_data_path=labeled_data_path, 

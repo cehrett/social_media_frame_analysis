@@ -20,7 +20,7 @@ def main():
     parser = argparse.ArgumentParser(description="Get numerical embeddings for frames.")
     parser.add_argument("--embeddings_path", 
                         default=os.path.join('.', 'data', 'frame_embeddings.json'), 
-                        help="Location to store embeddings.")
+                        help="Location to store embeddings as JSON.")
     parser.add_argument("--frames_path", 
                         default=os.path.join('.', 'frame_extraction_results.csv'), 
                         help="Location of frames to be embedded.")

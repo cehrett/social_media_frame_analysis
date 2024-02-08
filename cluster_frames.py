@@ -30,11 +30,14 @@ def main():
     parser.add_argument("--umap_dim",
                         type=int,
                         default=50, 
-                        help="Dimension to which to UMAP-reduce the embeddings prior to using HDBScan.")
+                        help="Dimension to which to UMAP-reduce the embeddings prior to using HDBScan. Default 50.")
     parser.add_argument("--min_cluster_size",
                         type=int,
                         default=10, 
-                        help="Controls the min_cluster_size parameter of HDBScan.")
+                        help="Controls the min_cluster_size parameter of HDBScan. Default 10.")
+    parser.add_argument("--id_col",
+                        default='id',
+                        help="Unique post id column in frames dataset. Default 'id'.")
     
     args = parser.parse_args()
     
@@ -51,7 +54,7 @@ def main():
         embeddings_dict = json.load(file)
     
     # Get embeddings for each theory in the data, with duplicates
-    embeddings_dict = ct.get_theories_and_embeddings_using_dict(df=df_with_frames, data_dict=embeddings_dict, id_col='id')
+    embeddings_dict = ct.get_theories_and_embeddings_using_dict(df=df_with_frames, data_dict=embeddings_dict, id_col=args.id_col)
     df_frame_clusters = pd.DataFrame(embeddings_dict)
 
     # Get clustering results
@@ -65,11 +68,22 @@ def main():
 
         # Put them in the df
         df_frame_clusters['cluster_labels'] = frame_clustering['hdb'].labels_
+        
+        # Drop embeddings col
+        df_frame_clusters.drop('embeddings', axis=1, inplace=True)
 
         # Save results of clustering
         df_frame_clusters.to_csv(args.clusters_path, index=False, quoting=csv.QUOTE_ALL)
         
         print(f"Frame clustering completed successfully. Results stored in {args.clusters_path}.")
+        
+        # Output some simple metrics.
+        total_number_of_clusters = df_frame_clusters.cluster_labels.nunique()-1
+        total_number_of_outliers = sum(df_frame_clusters.cluster_labels==-1)
+        average_rows_per_cluster = df_frame_clusters[df_frame_clusters['cluster_labels'] != -1].groupby('cluster_labels').size().mean()
+        
+        print(f"Total of {total_number_of_clusters} clusters found, with average of {average_rows_per_cluster} posts per cluster.")
+        print(f"{total_number_of_outliers} outliers found.")
     except Exception as e:
         print(f"An error occurred: {e}")
         traceback.print_exc()
