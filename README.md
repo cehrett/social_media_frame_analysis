@@ -13,8 +13,9 @@ Tools in this repository include the following:
 
     * Frame extraction script: Extracts frames from each social media post in a data set.
     * Frame embedding script: Converts the frames found in the frame extraction step into numerical embeddings.
-    * Frame-clustering script: Clusters frames together, so that close paraphrases are gathered into a single cluster. E.g., the LLM might label one post as expressing "Joe Biden is too old to be president" and another as "Biden is too old to run for president"; the clustering step should identify that these two frames are part of a single frame-cluster.
+    * Frame clustering script: Clusters frames together, so that close paraphrases are gathered into a single cluster. E.g., the LLM might label one post as expressing "Joe Biden is too old to be president" and another as "Biden is too old to run for president"; the clustering step should identify that these two frames are part of a single frame-cluster.
     * Analysis dashboard notebook: A Jupyter notebook that facilitates the analysis of the frame-clusters with respect to other variables of interest in the data.
+    * Bayesian account clustering script: Clusters accounts together, using two sources of information: flags (weak markers of unusual account status, e.g. indications of potential account inauthenticity) and frames (the frame-clusters expressed by each account's posts, as found by the frame-extraction, frame-embedding, and frame-clustering scripts above).
     
 The rest of this README file will describe each of the above three sets of tools, along with documentation about how to run them.
 
@@ -42,16 +43,26 @@ Note that the script de-deduplicates the frames, so that OpenAI is only queried 
 
 The script will store the embeddings at `data/frame_embeddings.json`.
 
-## Frame-clustering
+## Frame clustering
 
 This script clusters the frames found in the frame extraction step, with the intention of providing cluster labels such that each cluster contains frames which are rough paraphrases of each other. Note that the clustering tends not to be sensitive to negation, and thus "Joe Biden is too old to be president" and "Joe Biden is not too old to be president" may be clustered together. Thus the frame-clusters may be said to represent *topics* rather than frames.
 
 The script uses a two-step clustering process. First, these embeddings are dimension-reduced (using UMAP) to 50 dimensions. Second, the dimension-reduced embeddings are clustered using HDBScan. Unlike the frame extraction step (which queries OpenAI to run the LLM), all of this computation is performed locally.
 
-This script requires as input the file `frames.csv` produced by the frame extraction script. It produces as output a file `clusters.csv` with two columns: 'id' and 'cluster_label'.
+This script requires as input the file `frame_extraction_results.csv` produced by the frame extraction script. It produces as output a file `frame_cluster_results.csv` with two columns: 'id' and 'cluster_label'.
 
 ## Analysis dashboard notebook
 
 This Jupyter notebook facilitates analysis of the frame-clusters, particularly in relation to sentiment and to other binary variables of interest present in your data. E.g., if some accounts are known to come from a coordinated disinformation campaign, this notebook would facilitate the comparison of those accounts' posts with the other posts in the data.
 
 The notebook includes instructions guiding its use.
+
+## Baysian account clustering
+
+This script uses any available (potentially weak) markers of unusual account status, along with frame-clusters expressed in the posts, to cluster the accounts.
+
+To run this script, you will need:
+
+1. A csv containing the top unusual/suspicious frame-clusters, as output by the script `find_suspicious_frame_clusters.py`.
+2. A csv containing the author ids, flags, and number of posts, as output by the script `find_suspicious_frame_clusters.py`.
+3. A csv containing the frame-cluster usage information per each account, as output by the script `find_suspicious_frame_clusters.py`.
