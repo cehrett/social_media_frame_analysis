@@ -22,7 +22,7 @@ from utils.bayesian_account_clustering.data import ModelData, BatchIndices
 from utils.bayesian_account_clustering.model import AlphaNet, CoordinationModel
 from utils.bayesian_account_clustering import utils
 
-def main(needle_var, authors_path, successes_path, narratives_path, num_narratives, flags, component_weights, n_repeats, epochs, batch_size, num_particles, dropout_rate, cholesky_rank):
+def bayesian_clustering(needle_var, authors_path, successes_path, narratives_path, num_narratives, flags, component_weights, n_repeats, epochs, batch_size, num_particles, dropout_rate, cholesky_rank):
     pyro_version = '1.8.6'
     try:
         assert pyro.__version__.startswith(pyro_version), f"Pyro version mismatch. Expected: {pyro_version}, but found: {pyro.__version__}"
@@ -311,5 +311,5 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     
-    main(args.needle_var, args.authors_path, args.successes_path, args.narratives_path, args.num_narratives, args.flags, args.component_weights, args.n_repeats, args.epochs, args.batch_size, args.num_particles, args.dropout_rate, args.cholesky_rank)
+    bayesian_clustering(args.needle_var, args.authors_path, args.successes_path, args.narratives_path, args.num_narratives, args.flags, args.component_weights, args.n_repeats, args.epochs, args.batch_size, args.num_particles, args.dropout_rate, args.cholesky_rank)
 

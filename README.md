@@ -3,21 +3,23 @@
 ## Overview
 
 Social media posts may often be described as expressing some *frame*, where a frame is defined as a declarative claim about the world.
-For example, a tweet such as "I see people saying Biden is too old to run -- would you rather have a complete political noob running the most complex government and economy in history?" could be seen as expressing the frames "Joe Biden is not too old to be President" and "Experience is an important qualification for political office".
+For example, a post such as "No nom for Gerwig, really?" could be seen as expressing the frames "Greta Gerwig should have been nominated for Best Director for Barbie".
 
-Examining the frames expressed by social media posts provides a valuable lens for analysis. A particular frame may, for example, be trending even when no particular phrasing or expression of that frame is. Similarly, analyzing posts at the frame-level can help expose groups that coordinate to promote or demote a particular frame in public attention.
+Examining the frames expressed by social media posts provides a valuable lens for analysis. A particular frame may, for example, be trending even when no particular phrasing or expression of that frame is. Similarly, analyzing posts at the frame-level can help expose groups that coordinate to promote or demote a particular frame in public attention, since frames are a common object of influence for information operations.
 
-Manually labeling posts for their frame content is laborious. This repository includes tools for using large language models (LLMs) to extract frames from social media posts. Broadly, the code tools here automate embedding the social media posts into a text prompt which is input into an LLM, along with instructions for the LLM to identify any frames present in the posts. The LLM then produces output in the form of a list of frames found in each post. This list may be empty; e.g., the post "Whoa! Anyone see that???" does not appear to express any frame.
+Manually labeling posts for their frame content is laborious. This repository includes tools for using large language models (LLMs) to extract frames from social media posts. Broadly, the code tools here automate embedding the social media posts into a text prompt which is input into an LLM, along with instructions for the LLM to identify any frames present in the posts. The LLM then produces output in the form of a list of frames found in each post. This list may be empty; e.g., the post "Stoked about the weekend!" does not appear to express any frame.
 
-Tools in this repository include the following:
+In addition to tools for automating frame extraction, this repository contains tools to assist in various downstream analyses making use of the extracted frames. Tools in this repository include the following:
 
     * Frame extraction script: Extracts frames from each social media post in a data set.
     * Frame embedding script: Converts the frames found in the frame extraction step into numerical embeddings.
     * Frame clustering script: Clusters frames together, so that close paraphrases are gathered into a single cluster. E.g., the LLM might label one post as expressing "Joe Biden is too old to be president" and another as "Biden is too old to run for president"; the clustering step should identify that these two frames are part of a single frame-cluster.
     * Analysis dashboard notebook: A Jupyter notebook that facilitates the analysis of the frame-clusters with respect to other variables of interest in the data.
-    * Bayesian account clustering script: Clusters accounts together, using two sources of information: flags (weak markers of unusual account status, e.g. indications of potential account inauthenticity) and frames (the frame-clusters expressed by each account's posts, as found by the frame-extraction, frame-embedding, and frame-clustering scripts above).
+    * Suspicious frame-cluster detection script: Uses user-supplied "flags" (weak markers of suspicious activity) to detect which frame-clusters are unusually highly associated with those flags.
+    * Bayesian account clustering script: Clusters accounts together, using two sources of information: flags (weak markers of unusual account status, e.g. indications of potential account inauthenticity) and frames (the frame-clusters expressed by each account's posts, as found by the frame-extraction, frame-embedding, and frame-clustering scripts above). The approach implemented in this script, and the vast majority of the code, were developed by Hudson Smith. For details, see https://arxiv.org/abs/2401.06205.
+    * Frame-cluster time series visualization script: Plots frame-cluster activity as a time series. By default, the script creates three plots: one showing the frame-clusters with the most variation in their activity level over time, a second showing the frame-clusters experience the most growth over time, and a third showing the frame-clusters that are most relevant to a list of user-supplied queries. E.g., if you are interested in the topic of claims of election fraud, you might supply the queries "The election was stolen", "The election was fraudulent", "Vote counts were faked". The script would then automatically identify the frame-clusters that are most relevant to these queries, and display the activity of those frame-clusters over time.
     
-The rest of this README file will describe each of the above three sets of tools, along with documentation about how to run them.
+The rest of this README file will describe each of the above sets of tools, along with documentation about how to run them. However, the easiest way to run the tools is to modify the script `full_pipeline.py`, and then run that script.
 
 ## Frame extraction script
 
@@ -33,7 +35,7 @@ The script uses a prompt template found in `/utils/prompt_template.txt`. If you 
 
 If you have hand-labeled examples (anywhere from 5 to hundreds), you can use these to improve the model's prompt through few-shot learning. Provide your examples as a csv via the optional input argument `--labeled_examples`. Your labeled example csv should have a column `text` and a column `frames`.
 
-## Frame embedding
+## Frame embedding script
 
 This script converts the frames found in the frame extraction step into numerical embeddings. OpenAI services are used for this; hence, your OpenAI API key must be made available at `./openai_api_key.txt`, or specified via the optional input `--api_key_loc`. Using this script will incur a charge on your OpenAI account.
 
@@ -43,7 +45,7 @@ Note that the script de-deduplicates the frames, so that OpenAI is only queried 
 
 The script will store the embeddings at `data/frame_embeddings.json`.
 
-## Frame clustering
+## Frame clustering script
 
 This script clusters the frames found in the frame extraction step, with the intention of providing cluster labels such that each cluster contains frames which are rough paraphrases of each other. Note that the clustering tends not to be sensitive to negation, and thus "Joe Biden is too old to be president" and "Joe Biden is not too old to be president" may be clustered together. Thus the frame-clusters may be said to represent *topics* rather than frames.
 
@@ -57,9 +59,19 @@ This Jupyter notebook facilitates analysis of the frame-clusters, particularly i
 
 The notebook includes instructions guiding its use.
 
-## Baysian account clustering
+## Suspicious frame-cluster detection
 
-This script uses any available (potentially weak) markers of unusual account status, along with frame-clusters expressed in the posts, to cluster the accounts.
+This script uses any available "flags" -- potentially weak markers of unusual account status -- along with frame-clusters expressed in the posts, to identify which frame-clusters are unusually highly associated with the flags.
+
+To run this script, you will need:
+
+1. A csv containing the output of `cluster_frames.py` (i.e. `frame_cluster_results.csv`), giving the cluster label for each post in the dataset.
+2. The original data file of social media posts (e.g., the input to `extract_frames.py`), which is a csv file containing a row for each post, and including at least one column which is a binary "flag" of suspicious account activity. The full set of "flag" column headings must be provided to `find_suspicious_frame_clusters.py` as a list.
+
+
+## Baysian account clustering script
+
+This script uses the output of `find_suspicious_frame_clusters.py`, i.e. a csv containing the suspicious frame-clusters, to cluster the accounts. The intent is to facilitate finding accounts that are prone to focusing on suspicious frame-clusters, i.e. for the purposes of detecting coordinated inauthentic information operations.
 
 To run this script, you will need:
 
