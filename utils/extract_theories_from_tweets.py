@@ -25,7 +25,12 @@ def parse_args():
     args = parser.parse_args()
     return args
 
-def get_results_from_row(row, tweet_col, model, labeled_df):
+def get_results_from_row(row, 
+                         tweet_col, 
+                         model, 
+                         labeled_df,
+                         system_prompt
+                        ):
     # Define helper function that will extract theory from a row of the df.
     # This function will use a random sampling of the labeled data to create a FSL prompt each time it extracts theories from a tweet.
     # Get the tweet from this row
@@ -33,7 +38,7 @@ def get_results_from_row(row, tweet_col, model, labeled_df):
 
     # Make a prompt using randomly sampled labeled data
     random_labeled_data = load_labeled_examples(labeled_df)
-    prompt = make_prompt_for_oai_narr_extr(text, random_labeled_data)
+    prompt = make_prompt_for_oai_narr_extr(text, random_labeled_data, system_template=system_prompt)
 
     try:
         results = model(prompt)
@@ -54,7 +59,8 @@ def process_tweets(input_path,
                    model_id='gpt-3.5-turbo',
                    api_key_loc='./openai_api_key.txt',
                    chunk_size=100,
-                   raw_csv_or_intermediate=None
+                   raw_csv_or_intermediate=None,
+                   system_prompt_loc='.utils/oai_system_message_template.txt'
                   ):
     
     # Initialize tqdm with pandas 
@@ -79,8 +85,11 @@ def process_tweets(input_path,
                            top_p=top_p, 
                            max_new_tokens=max_new_tokens, 
                            num_return_sequences=num_return_sequences,
-                          )           
-
+                          )         
+    
+    # Get system prompt text
+    with open(system_prompt_loc, 'r') as file:
+        system_prompt = file.read()
 
     # Load either raw tweet excel files, or intermediate results
     if not raw_csv_or_intermediate:
@@ -109,6 +118,9 @@ def process_tweets(input_path,
 
     # Create a DataFrame of unique messages
     # Replace URLs with a placeholder
+    # import pdb; pdb.set_trace()
+    # Drop nas first
+    df = df[df[tweet_col].notna()]
     df['normalized_text'] = df[tweet_col].apply(lambda x: re.sub(r'http\S+', 'http:URL', x))
     # Replace Twitter usernames with a placeholder
     df['normalized_text'] = df['normalized_text'].apply(lambda x: re.sub(r'@\S+', '@USER', x))
@@ -125,7 +137,7 @@ def process_tweets(input_path,
     # Process each chunk of unique messages
     for i in range(len(chunks)-1):
         # Apply the function to each unique message in the chunk and store the result in the results_dict
-        results_dict_chunk = unique_df.iloc[chunks[i]:chunks[i+1]].progress_apply(lambda row: {row['normalized_text']: get_results_from_row(row, 'normalized_text', model, labeled_df)}, axis=1).values
+        results_dict_chunk = unique_df.iloc[chunks[i]:chunks[i+1]].progress_apply(lambda row: {row['normalized_text']: get_results_from_row(row, 'normalized_text', model, labeled_df, system_prompt)}, axis=1).values
 
         # Concatenate the result dictionaries of this chunk into the main results_dict
         for res in results_dict_chunk:
@@ -142,7 +154,7 @@ def process_tweets(input_path,
     
     # import pdb; pdb.set_trace()
     # If there are any rows left over, process them
-    results_dict_chunk = unique_df.iloc[chunks[-1]:].progress_apply(lambda row: {row['normalized_text']: get_results_from_row(row, 'normalized_text', model, labeled_df)}, axis=1).values
+    results_dict_chunk = unique_df.iloc[chunks[-1]:].progress_apply(lambda row: {row['normalized_text']: get_results_from_row(row, 'normalized_text', model, labeled_df, system_prompt)}, axis=1).values
 
     for res in results_dict_chunk:
         results_dict.update(res)

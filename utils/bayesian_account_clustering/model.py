@@ -1,3 +1,5 @@
+# Code in this script was adapted from code originally written by Hudson Smith.
+# for details, see: https://arxiv.org/abs/2401.06205
 import math
 import torch
 from torch import nn

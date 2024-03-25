@@ -38,6 +38,8 @@ def get_theories_and_embeddings_using_dict(df, data_dict, theory_col='frames', i
         # Iterate over each theory in the list
         for theory in sublist:
             # If the theory has an embedding in the data_dict, append it to the lists
+            if isinstance(theory,list):
+                import pdb; pdb.set_trace()
             if theory in data_dict:
                 theories_with_duplicates.append(theory)
                 embeddings_with_duplicates.append(data_dict[theory])
@@ -198,12 +200,13 @@ def top_n_clusters(dataframe, n=10, filters=None, exclude_minus_one=True, toptyp
     if date_range:
         cols_to_keep = [col for col in df_copy.columns if date_range[0] <= str(col) <= date_range[1]]
         if toptype in df_copy.columns: cols_to_keep += [toptype]
-    df_copy = df_copy[cols_to_keep]
+        df_copy = df_copy[cols_to_keep]
     
     # If filters are provided
+    # import pdb; pdb.set_trace()
     if filters:
         for col_index, func in filters.items():
-            df_copy = df_copy[df_copy.iloc[:, col_index].apply(func)]
+            df_copy = df_copy[df_copy[col_index].apply(func)]
     
     # Exclude rows with cluster label -1 if the flag is set
     if exclude_minus_one:
@@ -222,7 +225,13 @@ def top_n_clusters(dataframe, n=10, filters=None, exclude_minus_one=True, toptyp
 # filtered_df = top_n_ranges(cluster_df, n=5, filters={0: lambda x: x > 0.5, 2: lambda x: x < 0.3})
 
 
-def plot_theory_lines(df, theory_df, theory_col = 'results', add_sum_line=False):
+def plot_theory_lines(df, 
+                      theory_df, 
+                      theory_col='frames', 
+                      round_to_nearest='D', 
+                      add_sum_line=False,
+                      plot_title="Frame Clusters over Time Periods"
+                     ):
     """
     Plot the data from df with interactive hover features linking back to the theory_df.
     
@@ -252,21 +261,22 @@ def plot_theory_lines(df, theory_df, theory_col = 'results', add_sum_line=False)
         # Add the new key/value pair to the cluster_to_theory dictionary
         cluster_to_theory[new_row_index] = 'Sum of other rows'
     
-    # Narrow to just the columns we want to plot
-    df = df[[col for col in df.columns if isinstance(col, int) or isinstance(col, pd.Period)]]
-    
     # Convert the columns to strings, so Plotly can use them
-    df.columns = df.columns.astype(str)
+    if round_to_nearest=='D':
+        df.columns = [col.strftime('%Y-%m-%d') if isinstance(col, pd.Timestamp) else col for col in df.columns]
+    else:
+        df.columns = df.columns.astype(str)
     
     # Sort the columns
     df = df.sort_index(axis=1)
+    # import pdb; pdb.set_trace()
     
     # Create a new figure
     fig = go.Figure()
     
     # Loop through rows in the input dataframe
     for cluster_label, row in df.iterrows():
-        hover_text = f"Cluster: {cluster_label}<br>Theory: {cluster_to_theory.get(cluster_label, 'Unknown Theory')}"
+        hover_text = f"Cluster: {cluster_label}<br>Frame: {cluster_to_theory.get(cluster_label, 'Unknown Theory')}"
         fig.add_trace(
             go.Scatter(
                 x=row.index,
@@ -280,26 +290,28 @@ def plot_theory_lines(df, theory_df, theory_col = 'results', add_sum_line=False)
     
     # Update layout with title, axis labels, and plot size
     fig.update_layout(
-        title="Theories over Time Periods",
+        title=plot_title,
         xaxis_title="Time Period",
         yaxis_title="Proportion",
         width=1000,
         height=600
     )
     
-    fig.show()
     return fig
 
 # Example usage:
 # plot_theory_lines(top_n_ranges(cluster_df, n=20, filters = {2: lambda x: x==0}), theory_df)
 
 
-def get_embeddings_of_query_theories(query_theories: list[str], skip_verification=False):
+def get_embeddings_of_query_theories(username, 
+                                     api_key_loc,
+                                     query_theories: list[str], 
+                                     skip_verification=False):
     from langchain.embeddings import OpenAIEmbeddings
     from utils.load_llm_model import prepare_to_load_model
     
     # Define API key env var
-    prepare_to_load_model(username='cehrett', service='openai')
+    prepare_to_load_model(username=username, api_key_loc=api_key_loc, service='openai')
 
     # Get embeddings of large_list elts
     if skip_verification:
