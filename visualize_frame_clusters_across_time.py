@@ -6,17 +6,20 @@ import plotly.io as pio
 import utils.clustering_tools as ct
 
 def visualize_frame_cluster_across_time(frame_cluster_results_loc, 
-                 original_data_loc, 
-                 frame_cluster_embeddings_loc, 
-                 num_bins, 
-                 round_to_nearest, 
-                 time_col, 
-                 id_col, 
-                 num_fcs_to_display, 
-                 figures_output_loc, 
-                 username, 
-                 api_key_loc, 
-                 query_theories):
+                                        original_data_loc, 
+                                        frame_cluster_embeddings_loc, 
+                                        num_bins, 
+                                        round_to_nearest, 
+                                        time_col, 
+                                        id_col, 
+                                        num_fcs_to_display, 
+                                        figures_output_loc, 
+                                        username, 
+                                        api_key_loc, 
+                                        query_theories,
+                                        min_time=None,
+                                        max_time=None
+                                       ):
     # Get frame clusters loaded
     fc_df = pd.read_csv(frame_cluster_results_loc)
     if 'embeddings' in fc_df.columns:
@@ -37,21 +40,28 @@ def visualize_frame_cluster_across_time(frame_cluster_results_loc,
         raise e
 
     # Add the time col to the fc_df
-    fc_df = fc_df.merge(og_df[[id_col, time_col]], on=id_col, how='left')
+    # Rename og_df id_col to match fc_df id_col
+    og_df.rename(columns={id_col: 'id'}, inplace=True)
+    fc_df = fc_df.merge(og_df[['id', time_col]], on='id', how='left')
     # import pdb; pdb.set_trace()
 
     # Bin the times
 
     # Calculate the range and bin size
-    min_time = fc_df[time_col].min()
-    max_time = fc_df[time_col].max() + pd.to_timedelta(1, unit=round_to_nearest)
+    if min_time == None:
+        min_time = fc_df[time_col].min()
+        print(f'Min time: {min_time}')
+    if max_time == None:
+        max_time = fc_df[time_col].max() + pd.to_timedelta(1, unit=round_to_nearest)
+        print(f'Max time: {max_time}')
     range_seconds = (max_time - min_time).total_seconds()
     bin_size_seconds = range_seconds / (num_bins)
+    print(f'Binning data into {num_bins} bins of size {bin_size_seconds} seconds each.')
 
     # Define a function to calculate the bin start time, rounded to the nearest 'round_to_nearest'
     def calculate_bin_start_time(datetime_value):
         bin_start_time = min_time + pd.to_timedelta(((datetime_value - min_time).total_seconds() // bin_size_seconds) * bin_size_seconds, unit='s')
-        # Round to nearest day
+        # Round to nearest 'round_to_nearest'
         bin_start_time = bin_start_time.round(round_to_nearest)
         return bin_start_time
 
@@ -65,6 +75,7 @@ def visualize_frame_cluster_across_time(frame_cluster_results_loc,
     # Get unique values for cluster_labels and time_period
     unique_clusters = fc_df['cluster_labels'].unique()
     unique_periods = fc_df['bin_start_time'].unique()
+    print(f'Unique periods: {unique_periods}')
 
     # Initialize an empty dataframe with NaNs
     cluster_df = pd.DataFrame(index=unique_clusters, columns=unique_periods)
@@ -79,11 +90,23 @@ def visualize_frame_cluster_across_time(frame_cluster_results_loc,
             cluster_df.at[cluster, period] = proportion
 
     # Produce plot of fcs with most variation over time        
-    fig1 = ct.plot_theory_lines(ct.top_n_clusters(cluster_df, n=num_fcs_to_display), fc_df, theory_col='frames', add_sum_line=False, plot_title='Frame clusters with greatest variation over time')
+    fig1 = ct.plot_theory_lines(ct.top_n_clusters(cluster_df, n=num_fcs_to_display), 
+                                fc_df, 
+                                theory_col='frames', 
+                                add_sum_line=False, 
+                                round_to_nearest=round_to_nearest,
+                                plot_title='Frame clusters with greatest variation over time')
 
     # Now produce plot of fcs with most variation, limited to fcs that appear little in the first time block
     filter_dict = {min(cluster_df.columns): lambda x: x<0.01}
-    fig2 = ct.plot_theory_lines(ct.top_n_clusters(cluster_df, n=num_fcs_to_display, filters=filter_dict), fc_df, theory_col='frames', add_sum_line=False, plot_title='Frame clusters with greatest growth over time')
+    fig2 = ct.plot_theory_lines(ct.top_n_clusters(cluster_df, 
+                                                  n=num_fcs_to_display, 
+                                                  filters=filter_dict), 
+                                                  fc_df, 
+                                                  round_to_nearest=round_to_nearest,
+                                                  theory_col='frames', 
+                                                  add_sum_line=False, 
+                                                  plot_title='Frame clusters with greatest growth over time')
     
     # If there are queries for semantic search, use them to get another plot:
     if query_theories is not None:
@@ -102,6 +125,7 @@ def visualize_frame_cluster_across_time(frame_cluster_results_loc,
                              fc_df, 
                              theory_col='frames',
                              add_sum_line=True,
+                             round_to_nearest=round_to_nearest,
                              plot_title='Frame clusters most relevant to user-provided queries'
                                    )
 
