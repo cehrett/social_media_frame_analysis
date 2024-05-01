@@ -230,18 +230,16 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
-    # Parse command-line arguments
-    args = parse_args()
+def get_cluster_descriptions(input_file, output_file, n_samp, model):
     
     # Read the input file
-    df = pd.read_csv(args.input_file)
+    df = pd.read_csv(input_file)
     
     # Create a Markdown table
-    markdown_table = create_markdown_table(df, n_samp=args.n_samp)
+    markdown_table = create_markdown_table(df, n_samp=n_samp)
     
     # Get cluster descriptions using an OpenAI model
-    descriptions = get_llm_descriptions(markdown_table, get_cluster_description_prompt, model=args.model)
+    descriptions = get_llm_descriptions(markdown_table, get_cluster_description_prompt, model=model)
     
     # Convert the descriptions to a dictionary
     descriptions_dict = convert_string_to_dict(descriptions)
@@ -250,16 +248,19 @@ def main():
     df = add_cluster_descriptions_to_df(df, descriptions_dict)
     
     # Save the DataFrame with descriptions to the output file
-    df.to_csv(args.output_file, index=False)
+    df.to_csv(output_file, index=False)
     
-    print(f"Cluster descriptions saved to {args.output_file}.")
+    print(f"Cluster descriptions saved to {output_file}.")
 
     # Display the cluster descriptions in Markdown format
-    markdown_table = display_markdown_cluster_descriptions(df, n_samp=args.n_samp)
+    markdown_table = display_markdown_cluster_descriptions(df, n_samp=n_samp)
 
     # Create an HTML output log file
-    create_html_output_log(markdown_table, args.model)
+    create_html_output_log(markdown_table, model)
 
 
 if __name__ == "__main__":
-    main()
+    # Parse command-line arguments
+    args = parse_args()
+
+    get_cluster_descriptions(args.input_file, args.output_file, args.n_samp, args.model)
