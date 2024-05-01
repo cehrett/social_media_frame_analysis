@@ -134,10 +134,14 @@ def process_tweets(input_path,
     # Initialize a results dictionary to keep track of unique results
     results_dict = {}
 
+    # Initialize a single progress bar for the entire data processing
+    total_chunks = len(chunks) - 1
+    pbar = tqdm(total=total_chunks, desc="Overall progress")
+
     # Process each chunk of unique messages
     for i in range(len(chunks)-1):
         # Apply the function to each unique message in the chunk and store the result in the results_dict
-        results_dict_chunk = unique_df.iloc[chunks[i]:chunks[i+1]].progress_apply(lambda row: {row['normalized_text']: get_results_from_row(row, 'normalized_text', model, labeled_df, system_prompt)}, axis=1).values
+        results_dict_chunk = unique_df.iloc[chunks[i]:chunks[i+1]].apply(lambda row: {row['normalized_text']: get_results_from_row(row, 'normalized_text', model, labeled_df, system_prompt)}, axis=1).values
 
         # Concatenate the result dictionaries of this chunk into the main results_dict
         for res in results_dict_chunk:
@@ -150,11 +154,15 @@ def process_tweets(input_path,
         # Save intermediate results to a csv file
         df.to_csv(intermediate_path, index=False, quoting=csv.QUOTE_ALL)
 
-        print(f'Processed {chunks[i+1]} rows...')
-    
+        # Update the progress bar after each chunk is processed
+        pbar.update(1)
+   
     # import pdb; pdb.set_trace()
     # If there are any rows left over, process them
-    results_dict_chunk = unique_df.iloc[chunks[-1]:].progress_apply(lambda row: {row['normalized_text']: get_results_from_row(row, 'normalized_text', model, labeled_df, system_prompt)}, axis=1).values
+    results_dict_chunk = unique_df.iloc[chunks[-1]:].apply(lambda row: {row['normalized_text']: get_results_from_row(row, 'normalized_text', model, labeled_df, system_prompt)}, axis=1).values
+
+    # Close the progress bar
+    pbar.close()
 
     for res in results_dict_chunk:
         results_dict.update(res)

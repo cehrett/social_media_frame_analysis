@@ -1,8 +1,8 @@
 import pandas as pd
 import os
 import argparse
+from .utils import clustering_tools as ct
 import plotly.io as pio
-import utils.clustering_tools as ct
 
 
 def save_figures_to_html(query_theories, num_bins, figures_output_loc, fig1_html, fig2_html, fig3_html=None):
@@ -41,15 +41,18 @@ def visualize_frame_cluster_across_time(frame_cluster_results_loc,
                                         num_fcs_to_display, 
                                         username, 
                                         api_key_loc, 
+                                        last_day,
                                         query_theories=None,
                                         figures_output_loc=None, 
                                         min_time=None,
                                         max_time=None,
                                         multiday=False,
-                                        last_day=None,
                                         topic=None,
                                         return_figures=False
                                        ):
+    
+    last_day = pd.to_datetime(last_day)
+
     # Get frame clusters loaded
     if multiday==False:
         fc_df = pd.read_csv(frame_cluster_results_loc)
@@ -64,10 +67,6 @@ def visualize_frame_cluster_across_time(frame_cluster_results_loc,
         # We will load the frame cluster results for the last day of analysis, as 
         # well as for up to seven days prior to that, if available.
         
-        # Get the last day of analysis
-        if last_day is None:
-            raise ValueError('If multiday analysis is requested, the last_day argument must be provided.')
-        last_day = pd.to_datetime(last_day)
 
         # Get the topic of analysis
         if topic is None:
@@ -99,12 +98,12 @@ def visualize_frame_cluster_across_time(frame_cluster_results_loc,
     if multiday==False:
         og_df = pd.read_csv(original_data_loc)
     else:
-        og_df = pd.read_csv(os.path.join(original_data_loc, topic, last_day.strftime('%Y-%m-%d') + '.csv'))
+        og_df = pd.read_csv(os.path.join(original_data_loc, topic, last_day.strftime('%Y-%m-%d'), 'frame_extraction_results.csv'))
 
         # Load the original data for up to the last seven days
         for i in range(1, 8):
             day = last_day - pd.DateOffset(days=i)
-            day_dir = os.path.join(original_data_loc, topic, day.strftime('%Y-%m-%d') + '.csv')
+            day_dir = os.path.join(original_data_loc, topic, day.strftime('%Y-%m-%d'), 'frame_extraction_results.csv')
             if os.path.isfile(day_dir):
                 day_data = pd.read_csv(day_dir)
                 og_df = pd.concat([og_df, day_data], ignore_index=True)
@@ -193,7 +192,7 @@ def visualize_frame_cluster_across_time(frame_cluster_results_loc,
 
         # Add embeddings to fc_df, so we can use semantic search to see fcs that are relevant to user-provided queries
         # if multiday is true, then get embeddings for each day of last seven days
-        if multiday==True:
+        if multiday:
             embeddings_df = pd.read_json(os.path.join(frame_cluster_embeddings_loc, topic, last_day.strftime('%Y-%m-%d'), 'frame_embeddings.json'))
             for i in range(1, 8):
                 day = last_day - pd.DateOffset(days=i)
@@ -206,7 +205,7 @@ def visualize_frame_cluster_across_time(frame_cluster_results_loc,
                 else:
                     print(f'The file {day_dir} does not exist. Skipping.')
         else:
-            embeddings_df = pd.read_json(frame_cluster_embeddings_loc)
+            embeddings_df = pd.read_json(os.path.join(frame_cluster_embeddings_loc, topic, last_day.strftime('%Y-%m-%d'), 'frame_embeddings.json'))
 
 
         # drop na columns of fc_df

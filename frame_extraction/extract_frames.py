@@ -13,7 +13,6 @@ def process_and_save_tweets(input_path,
                            ):
     intermediate_path = os.path.join(results_dir, 'TEMP_frame_extraction.csv')
     output_path = os.path.join(results_dir, 'frame_extraction_results.csv')
-    labeled_data_path = os.path.join('.','data', 'labeled_data.csv')
     
     try:
         df_with_frames = process_tweets(input_path=input_path,

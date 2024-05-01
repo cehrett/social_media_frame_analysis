@@ -5,7 +5,7 @@ import ast
 import string
 import json
 import traceback
-import utils.clustering_tools as ct
+from .utils import clustering_tools as ct
 import numpy as np 
 
 def safe_literal_eval(s):

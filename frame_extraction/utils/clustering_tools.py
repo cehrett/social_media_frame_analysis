@@ -308,7 +308,7 @@ def get_embeddings_of_query_theories(username,
                                      query_theories: list[str], 
                                      skip_verification=False):
     from langchain.embeddings import OpenAIEmbeddings
-    from utils.load_llm_model import prepare_to_load_model
+    from .load_llm_model import prepare_to_load_model
     
     # Define API key env var
     prepare_to_load_model(username=username, api_key_loc=api_key_loc, service='openai')

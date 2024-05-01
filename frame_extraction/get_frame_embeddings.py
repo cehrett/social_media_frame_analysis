@@ -6,7 +6,7 @@ import argparse
 import string
 import json
 from langchain.embeddings import OpenAIEmbeddings
-from utils.load_llm_model import prepare_to_load_model
+from .utils.load_llm_model import prepare_to_load_model
 
 
 def safe_literal_eval(s):

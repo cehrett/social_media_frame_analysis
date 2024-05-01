@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='frame_extraction',
-    version='0.1.0',
+    version='0.2.0',
     packages=find_packages(),
     description='Extract and analyze frames from social media or other corpus of short text documents.',
     long_description=open('README.md').read(),
