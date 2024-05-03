@@ -82,9 +82,10 @@ def parse_command_line_arguments():
 
     # Time series visualization settings
     parser.add_argument("--num_bins", default=12, help="Number of time bins per day.")
-    parser.add_argument("--query_theories", default=['This is sportswashing'], help="List of query theories for time series visualization.")
+    parser.add_argument("--query_theories", default=['This is sportswashing'], nargs='+', help="List of query theories for time series visualization.")
     parser.add_argument("--time_col", default='CreatedTime', help="Column name for the time data.")
     parser.add_argument("--round_to_nearest", default='H', help="Rounding granularity for time data.")
+    parser.add_argument("--bin_times", action='store_true', help="Whether to bin the times.")
 
     # Which parts of the pipeline to run
     parser.add_argument("--do_process_and_save_tweets", action='store_true', help="Extract frames from a day's posts.")
@@ -123,6 +124,7 @@ def full_pipeline(data_path,
                   query_theories, 
                   time_col, 
                   round_to_nearest, 
+                  bin_times,
                   do_process_and_save_tweets, 
                   do_get_embeddings, 
                   do_cluster_embeddings, 
@@ -130,6 +132,7 @@ def full_pipeline(data_path,
                   do_bayesian_clustering, 
                   do_visualize_frame_cluster_across_time
                   ):
+    
     if do_process_and_save_tweets:
         from frame_extraction.extract_frames import process_and_save_tweets
         process_and_save_tweets(data_path,
@@ -195,7 +198,8 @@ def full_pipeline(data_path,
                     figures_output_loc=os.path.join(output_dir,'frame_cluster_activity_across_time.html'),
                     username=username,
                     api_key_loc=api_key_loc,
-                    query_theories=query_theories
+                    query_theories=query_theories,
+                    bin_times=bin_times
                     )
 
     
@@ -227,6 +231,7 @@ if __name__ == "__main__":
                   args.query_theories, 
                   args.time_col, 
                   args.round_to_nearest, 
+                  args.bin_times,
                   args.do_process_and_save_tweets, 
                   args.do_get_embeddings, 
                   args.do_cluster_embeddings, 

@@ -3,6 +3,7 @@ import os
 import argparse
 from .utils import clustering_tools as ct
 import plotly.io as pio
+from dateutil import parser
 
 
 def save_figures_to_html(query_theories, num_bins, figures_output_loc, fig1_html, fig2_html, fig3_html=None):
@@ -19,7 +20,7 @@ def save_figures_to_html(query_theories, num_bins, figures_output_loc, fig1_html
     <ul>
     {''.join(f'<li>{query}</li>' for query in query_theories) if query_theories is not None else 'None provided'}
     </ul>
-    {fig1_html}
+    {fig1_html} 
     {fig2_html}
     {fig3_html}
     </body>
@@ -29,6 +30,15 @@ def save_figures_to_html(query_theories, num_bins, figures_output_loc, fig1_html
     # Save Combined HTML to File
     with open(figures_output_loc, "w") as file:
         file.write(html_template)
+
+
+def generalized_date_parser(date):
+    try:
+        # Attempt to parse the date string using the dateutil parser
+        return pd.to_datetime(parser.parse(str(date)), utc=True)
+    except Exception:
+        # If parsing fails, handle the failure case here
+        return pd.NaT
 
 
 def visualize_frame_cluster_across_time(frame_cluster_results_loc, 
@@ -41,17 +51,44 @@ def visualize_frame_cluster_across_time(frame_cluster_results_loc,
                                         num_fcs_to_display, 
                                         username, 
                                         api_key_loc, 
-                                        last_day,
+                                        last_day=None,
                                         query_theories=None,
                                         figures_output_loc=None, 
                                         min_time=None,
                                         max_time=None,
                                         multiday=False,
                                         topic=None,
-                                        return_figures=False
+                                        return_figures=False,
+                                        bin_times=True
                                        ):
     
-    last_day = pd.to_datetime(last_day)
+    """
+    Visualizes frame clusters across time.
+    
+    Parameters:
+    frame_cluster_results_loc (str): Location of the frame cluster results CSV file.
+    original_data_loc (str): Location of the original data CSV file. Should have time column in a format that can be fed to pd.to_datetime().
+    frame_cluster_embeddings_loc (str): Location of the frame embeddings JSON file. Needed if and only if queries are provided, to see frame-clusters relevant to those queries.
+    num_bins (int): Number of time bins into which to divide the data.
+    round_to_nearest (str): Round the time bins (used for plot labels).
+    time_col (str): Name of the time column in the data.
+    id_col (str): Name of the ID column in the data.
+    num_fcs_to_display (int): Number of frame clusters to display.
+    username (str): Username for API access. Needed only if queries are provided.
+    api_key_loc (str): Location of the API key. Needed only if queries are provided.
+    last_day (str): The last day of analysis, in the format 'YYYY-MM-DD'. Required if multiday is set.
+    query_theories (list): List of theories to query. If not provided, the script will skip steps related to query processing.
+    figures_output_loc (str): Location to save the output HTML file with figures.
+    min_time (str): Minimum time to consider for binning. If None, the minimum time in the data will be used.
+    max_time (str): Maximum time to consider for binning. If None, the maximum time in the data will be used.
+    multiday (bool): If this flag is set, the script will look for frame cluster results and original data in a multiday format.
+    topic (str): The topic of analysis. Required if multiday is set.
+    return_figures (bool): If True, the function will return the figures' html. Otherwise, it will save them to an HTML file.
+    bin_times (bool): If True, the function will bin the times into num_bins. If False, the function will not bin the times.
+    """
+    
+    if last_day:
+        last_day = pd.to_datetime(last_day)
 
     # Get frame clusters loaded
     if multiday==False:
@@ -113,7 +150,7 @@ def visualize_frame_cluster_across_time(frame_cluster_results_loc,
 
     # Convert time col to datetime
     try:
-        og_df[time_col] = pd.to_datetime(og_df[time_col], format='mixed', utc=True)
+        og_df[time_col] = og_df[time_col].apply(generalized_date_parser)
     except Exception as e:
         print('ERROR: There was a problem converting the time into pandas datetime format.\n',\
               'Please ensure that the time column is formatted in such a way that pd.to_datetime() may be called on it.')
@@ -125,29 +162,33 @@ def visualize_frame_cluster_across_time(frame_cluster_results_loc,
     fc_df = fc_df.merge(og_df[['id', time_col]], on='id', how='left')
     # import pdb; pdb.set_trace()
 
-    # Bin the times
-    # Calculate the range and bin size
-    if min_time == None:
-        min_time = fc_df[time_col].min()
-        print(f'Min time: {min_time}')
-    if max_time == None:
-        max_time = fc_df[time_col].max() + pd.to_timedelta(1, unit=round_to_nearest)
-        print(f'Max time: {max_time}')
-    range_seconds = (max_time - min_time).total_seconds()
-    bin_size_seconds = range_seconds / (num_bins)
-    print(f'Binning data into {num_bins} bins of size {bin_size_seconds} seconds each.')
+    if bin_times:
+        # Bin the times
+        # Calculate the range and bin size
+        if min_time == None:
+            min_time = fc_df[time_col].min()
+            print(f'Min time: {min_time}')
+        if max_time == None:
+            import pdb; pdb.set_trace()
+            max_time = fc_df[time_col].max() + pd.to_timedelta(1, unit=round_to_nearest)
+            print(f'Max time: {max_time}')
+        range_seconds = (max_time - min_time).total_seconds()
+        bin_size_seconds = range_seconds / (num_bins)
+        print(f'Binning data into {num_bins} bins of size {bin_size_seconds} seconds each.')
 
-    # Define a function to calculate the bin start time, rounded to the nearest 'round_to_nearest'
-    def calculate_bin_start_time(datetime_value):
-        bin_start_time = min_time + pd.to_timedelta(((datetime_value - min_time).total_seconds() // bin_size_seconds) * bin_size_seconds, unit='s')
-        # Round to nearest 'round_to_nearest'
-        bin_start_time = bin_start_time.round(round_to_nearest)
-        return bin_start_time
+        # Define a function to calculate the bin start time, rounded to the nearest 'round_to_nearest'
+        def calculate_bin_start_time(datetime_value):
+            bin_start_time = min_time + pd.to_timedelta(((datetime_value - min_time).total_seconds() // bin_size_seconds) * bin_size_seconds, unit='s')
+            # Round to nearest 'round_to_nearest'
+            bin_start_time = bin_start_time.round(round_to_nearest)
+            return bin_start_time
 
-    # Apply the function to create a new column with the bin start time
-    fc_df['bin_start_time'] = fc_df[time_col].apply(calculate_bin_start_time)
-    # Drop NaTs
-    fc_df = fc_df[fc_df.bin_start_time.notna()]
+        # Apply the function to create a new column with the bin start time
+        fc_df['bin_start_time'] = fc_df[time_col].apply(calculate_bin_start_time)
+        # Drop NaTs
+        fc_df = fc_df[fc_df.bin_start_time.notna()]
+    else:
+        fc_df['bin_start_time'] = fc_df[time_col]
     
     # Get a new df that tells us what share of the conversation each theory occupies in each time period
 
@@ -189,7 +230,6 @@ def visualize_frame_cluster_across_time(frame_cluster_results_loc,
     
     # If there are queries for semantic search, use them to get another plot:
     if query_theories is not None:
-
         # Add embeddings to fc_df, so we can use semantic search to see fcs that are relevant to user-provided queries
         # if multiday is true, then get embeddings for each day of last seven days
         if multiday:
@@ -205,7 +245,10 @@ def visualize_frame_cluster_across_time(frame_cluster_results_loc,
                 else:
                     print(f'The file {day_dir} does not exist. Skipping.')
         else:
-            embeddings_df = pd.read_json(os.path.join(frame_cluster_embeddings_loc, topic, last_day.strftime('%Y-%m-%d'), 'frame_embeddings.json'))
+            if topic and last_day:
+                embeddings_df = pd.read_json(os.path.join(frame_cluster_embeddings_loc, topic, last_day.strftime('%Y-%m-%d'), 'frame_embeddings.json'))
+            else:
+                embeddings_df = pd.read_json(frame_cluster_embeddings_loc)
 
 
         # drop na columns of fc_df
