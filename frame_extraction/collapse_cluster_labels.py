@@ -473,20 +473,23 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
     # If using a store, save the store DataFrame with the new cluster labels
     if store_loc:
         # First, back up the old store
-        dfs[0].to_csv(os.path.join(root_dir, store_loc[:-4] + '_backup.csv'), index=False)
+        dfs[0].to_csv(os.path.join(root_dir, topic, store_loc[:-4] + '_backup.csv'), index=False)
 
         # Find which cluster labels are new (in dfs[-1] but not in dfs[0])
         new_labels = set(dfs[-1]['cluster_labels'].unique()) - set(dfs[0]['cluster_labels'].unique())
-        # For each new label, randomly samply up to 30 unique frames from dfs[-1] and add them to dfs[0]
+        # For each new label, randomly samply up to 30 rows from dfs[-1] that have unique frames and add them to dfs[0].
         for label in new_labels:
-            frames = dfs[-1][dfs[-1]['cluster_labels'] == label]['frames'].unique()
-            sampled_frames = np.random.choice(frames, size=min(30, len(frames)), replace=False)
-            # Add the new cluster to the store DataFrame, by creating a new df and then concatenating it
-            new_df = pd.DataFrame({'cluster_labels': [label]*len(sampled_frames), 'frames': sampled_frames})
-            dfs[0] = pd.concat([dfs[0], new_df], ignore_index=True)
+            # Get a df that is a subset of df[-1] with only the rows that have the new label
+            new_label_df = dfs[-1][dfs[-1]['cluster_labels'] == label]
+            # Deduplicate with respect to the frames column
+            new_label_df = new_label_df.drop_duplicates(subset='frames')
+            # Sample up to 30 rows
+            new_label_df = new_label_df.sample(min(30, len(new_label_df)))
+            # Add the new_label_df to dfs[0]
+            dfs[0] = pd.concat([dfs[0], new_label_df], ignore_index=True)
 
         # Save the modified store DataFrame to a CSV file in the store_loc location
-        dfs[0].to_csv(os.path.join(root_dir, store_loc), index=False)
+        dfs[0].to_csv(os.path.join(root_dir, topic, store_loc), index=False)
         print(f"Cluster labels in the store have been updated and saved to {store_loc}.")        
 
     # Create an HTML output log file

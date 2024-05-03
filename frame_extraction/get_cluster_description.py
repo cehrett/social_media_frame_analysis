@@ -121,10 +121,16 @@ def convert_string_to_dict(input_str):
     try:
         json_str = input_str.split("```json\n", 1)[1].rsplit("\n```", 1)[0]
     except IndexError:
-        # Find the outermost square brackets and extract the JSON string
-        start_idx = input_str.find("[")
-        end_idx = input_str.rfind("]")
-        json_str = input_str[start_idx:end_idx+1]
+        # If the input string appears to be bordered by square brackets, extract the JSON string
+        if "[" in input_str[:50] and "]" in input_str[-50:]:
+            # Find the outermost square brackets and extract the JSON string
+            start_idx = input_str.find("[")
+            end_idx = input_str.rfind("]")
+            json_str = input_str[start_idx:end_idx+1]
+        elif input_str.startswith("{"):
+            json_str = input_str
+            if not input_str.endswith("}"):
+                json_str += "\"}"
     
     # Parse the JSON string into a Python object
     data = json.loads(json_str)
@@ -224,7 +230,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Get cluster descriptions for frame clusters.")
     parser.add_argument("--input_file", type=str, required=True, help="The input file containing the frame clusters.")
     parser.add_argument("--output_file", type=str, required=True, help="The output file to save the results.")
-    parser.add_argument("--n_samp", type=int, default=5, help="The number of unique texts to sample for each cluster.")
+    parser.add_argument("--n_samp", type=int, default=10, help="The number of unique texts to sample for each cluster.")
     parser.add_argument("--model", type=str, default='gpt-4-turbo-preview', help="The name of the GPT model to use.")
     
     return parser.parse_args()

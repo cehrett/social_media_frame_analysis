@@ -56,7 +56,7 @@ def cluster_embeddings(frames_path, embeddings_path, clusters_path, umap_dim=50,
         total_number_of_outliers = sum(df_frame_clusters['cluster_labels'] == -1)
         average_rows_per_cluster = df_frame_clusters[df_frame_clusters['cluster_labels'] != -1].groupby('cluster_labels').size().mean()
 
-        print(f"Total of {total_number_of_clusters} clusters found, with average of {average_rows_per_cluster} posts per cluster.")
+        print(f"Total of {total_number_of_clusters} clusters found, with average of {average_rows_per_cluster:.2f} posts per cluster.")
         print(f"{total_number_of_outliers} outliers found.")
     except Exception as e:
         print(f"An error occurred: {e}")

@@ -18,9 +18,19 @@ def get_single_and_multiday_visualizations(frame_cluster_results_loc,
                                            topic=None, 
                                            last_day=None):
     
+    # Check if 'frame_cluster_results_across_days.csv' exists in the directory
+    if os.path.exists(os.path.join(frame_cluster_results_loc, topic, last_day, 'frame_cluster_results_into_store.csv')):
+        frame_cluster_results_path = os.path.join(frame_cluster_results_loc, topic, last_day, 'frame_cluster_results_into_store.csv')
+    elif os.path.exists(os.path.join(frame_cluster_results_loc, topic, last_day, 'frame_cluster_results_across_days.csv')):
+        frame_cluster_results_path = os.path.join(frame_cluster_results_loc, topic, last_day, 'frame_cluster_results_across_days.csv')
+    else:
+        raise FileNotFoundError(
+            f"Could not find a frame cluster results file in the directory: {os.path.join(frame_cluster_results_loc, topic, last_day)}")
+    print(f"Frame cluster results path for visualization: {frame_cluster_results_path}")
+    
     # Get single-day visualization figures:
     fig1_html, fig2_html, fig3_html = visualize_frame_cluster_across_time(
-        frame_cluster_results_loc=os.path.join(frame_cluster_results_loc, topic, last_day, 'frame_cluster_results_across_days.csv'),
+        frame_cluster_results_loc=os.path.join(frame_cluster_results_loc, topic, last_day, frame_cluster_results_path),
         original_data_loc=original_data_loc,
         frame_cluster_embeddings_loc=frame_cluster_embeddings_loc,
         num_bins=num_bins,
@@ -69,12 +79,12 @@ def get_single_and_multiday_visualizations(frame_cluster_results_loc,
     <body>
     <h1>Frame cluster activity over time</h1>
     <div>Number of Time Bins: {num_bins}</div>
+    {fig1_html}
+    {fig2_html}
     <div>Queries Used for Figures 3 and 6:</div>
     <ul>
     {''.join(f'<li>{query}</li>' for query in query_theories) if query_theories is not None else 'None provided'}
     </ul>
-    {fig1_html}
-    {fig2_html}
     {fig3_html}
     {fig4_html}
     {fig5_html}
@@ -101,21 +111,6 @@ if __name__ == '__main__':
     parser.add_argument('--query_theories', required=True, help='Semicolon-separated list of query theories')
     parser.add_argument('--output_dir', required=True, help='Output directory')
     parser.add_argument('--original_data_loc', required=True, help='Location of the original data')
-
-    # Config: Time series visualization settings
-    # topic = 'EconomicFreedomFighters'
-    # last_day = '2024-03-25'
-    # num_bins = 12
-    # time_col = 'CreatedTime'
-    # round_to_nearest = 'H'
-    # output_dir = os.path.join('/', 'zfs', 'disinfo', 'Monitoring', 'Africa_Elections', 'frame_extraction_analysis', 'outputs')
-    # original_data_loc = os.path.join('/', 'zfs', 'disinfo', 'Monitoring', 'Africa_Elections')
-    # api_key_loc = os.path.join('/', 'home', 'cehrett', '.apikeys', 'openai_api_key.txt')
-    # id_col = 'UniversalMessageId'
-    # username='cehrett'
-    # query_theories = ['There is corruption in the African National Congress', 
-    #                 'The Zondo Commission findings are a threat to the ANC', 
-    #                 'The Judicial Commission of Inquiry into Allegations of State Capture must be taken seriously']
 
     args = parser.parse_args()
     print(f"Query theories: {args.query_theories.split(';')}")

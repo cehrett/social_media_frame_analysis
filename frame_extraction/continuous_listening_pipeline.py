@@ -4,6 +4,7 @@ from .get_frame_embeddings import get_embeddings
 from .cluster_frames import cluster_embeddings
 from .get_multiday_visualization import get_single_and_multiday_visualizations
 from .collapse_cluster_labels import collapse
+from .get_cluster_description import get_cluster_descriptions
 
 import os
 
@@ -54,7 +55,9 @@ def process_command_line_args():
     parser.add_argument("--extract_frames", action='store_true', help="Extract frames.")
     parser.add_argument("--get_embeddings", action='store_true', help="Get embeddings.")
     parser.add_argument("--cluster_embeddings", action='store_true', help="Cluster embeddings.")
-    parser.add_argument("--collapse", action='store_true', help="Collapse cluster labels within-day and across days.")
+    parser.add_argument("--get_descriptions", action='store_true', help="Get cluster descriptions.")
+    parser.add_argument("--collapse_within_day", action='store_true', help="Collapse cluster labels within-day.")
+    parser.add_argument("--collapse_into_store", action='store_true', help="Collapse cluster labels into frame store.")
     parser.add_argument("--visualize", action='store_true', help="Visualize frame clusters across time.")
 
     args = parser.parse_args()
@@ -100,8 +103,17 @@ if __name__ == "__main__":
                         min_cluster_size=args.min_cluster_size,
                         id_col=args.id_col
                         )
-        
-    if args.collapse:
+
+    if args.get_descriptions:
+        print("Getting cluster descriptions...")
+        get_cluster_descriptions(input_file=os.path.join(results_dir, 'frame_cluster_results.csv'),
+                                output_file=os.path.join(results_dir, 'frame_cluster_results.csv'),
+                                n_samp=10,
+                                model='gpt-4-turbo-preview'
+                                )    
+
+
+    if args.collapse_within_day:
         print("Collapsing cluster labels within-day...")
         collapse(root_dir=os.path.join(args.root_dir, 'frame_extraction_analysis', 'outputs'),
                 topic=args.topic,
@@ -110,12 +122,13 @@ if __name__ == "__main__":
                 across_days=False
                 )
         
-        print("Collapsing cluster labels across days...")
+    if args.collapse_into_store:
+        print(f"Collapsing cluster labels into frame store for {args.topic}...")
         collapse(root_dir=os.path.join(args.root_dir, 'frame_extraction_analysis', 'outputs'),
                 topic=args.topic,
                 date_current=args.date,
                 model='gpt-4-turbo-preview',
-                across_days=True
+                store_loc='frame_store.csv'
                 )
     
     if args.visualize:
