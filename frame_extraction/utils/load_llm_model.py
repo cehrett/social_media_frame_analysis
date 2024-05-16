@@ -35,8 +35,8 @@ def prepare_to_load_model(username=None,
         if os.path.exists(api_key_loc):
             # Use text file at api_key_loc and os library to export environment variable OPENAI_API_KEY
             with open(api_key_loc, 'r') as file:
-                openai_api_key = file.read().replace('\n', '')
-
+                openai_api_key = file.read().replace('\n', '').lstrip('\ufeff').lstrip('ï»¿')
+            
             os.environ["OPENAI_API_KEY"] = openai_api_key
 
             print(f'{service} API key loaded.')

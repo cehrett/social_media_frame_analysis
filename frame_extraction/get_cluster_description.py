@@ -7,6 +7,7 @@ import json
 from IPython.display import display
 from IPython.display import Markdown
 import markdown
+from .utils.load_llm_model import prepare_to_load_model
 
 
 # Define system prompt
@@ -236,7 +237,10 @@ def parse_args():
     return parser.parse_args()
 
 
-def get_cluster_descriptions(input_file, output_file, n_samp, model):
+def get_cluster_descriptions(input_file, output_file, api_key_loc, n_samp, model):
+
+    # Load the OpenAI API key
+    prepare_to_load_model(api_key_loc=api_key_loc)
     
     # Read the input file
     df = pd.read_csv(input_file)

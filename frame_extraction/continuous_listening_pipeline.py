@@ -5,6 +5,7 @@ from .cluster_frames import cluster_embeddings
 from .get_multiday_visualization import get_single_and_multiday_visualizations
 from .collapse_cluster_labels import collapse
 from .get_cluster_description import get_cluster_descriptions
+from .utils.load_llm_model import prepare_to_load_model
 
 import os
 
@@ -31,7 +32,7 @@ def process_command_line_args():
     """
     import argparse
     parser = argparse.ArgumentParser(description="Extract frames from a day's posts, cluster them, collapse the cluster labels within a day, then collapse them into previous day's, then visualize the week.")
-    parser.add_argument("root_dir", help="Root directory for the project.")
+    parser.add_argument("root_dir", help="Root directory for the project. This should be the parent dir of which the topic dirs are children. Each topic dir should have csvs: YYYY-MM-DD.csv")
     parser.add_argument("--topic", required=True, help="Topic for the analysis.")
     parser.add_argument("--date", required=True, help="Date for the analysis.")
     parser.add_argument("--system_prompt_loc", required=True, help="System prompt to give to LLM when extracting frames.")
@@ -52,6 +53,8 @@ def process_command_line_args():
     parser.add_argument("--username", required=True, help="Username for access control.")
     parser.add_argument("--query_theories", required=True, help="Semicolon-separated list of query theories.")
 
+    parser.add_argument("--website_dir", default='/zfs/disinfo/website', help="Directory for the website.")
+
     parser.add_argument("--extract_frames", action='store_true', help="Extract frames.")
     parser.add_argument("--get_embeddings", action='store_true', help="Get embeddings.")
     parser.add_argument("--cluster_embeddings", action='store_true', help="Cluster embeddings.")
@@ -59,7 +62,8 @@ def process_command_line_args():
     parser.add_argument("--collapse_within_day", action='store_true', help="Collapse cluster labels within-day.")
     parser.add_argument("--collapse_into_store", action='store_true', help="Collapse cluster labels into frame store.")
     parser.add_argument("--visualize", action='store_true', help="Visualize frame clusters across time.")
-
+    parser.add_argument("--add_result_to_website", action='store_true', help="Add result to website.")
+    
     args = parser.parse_args()
     return args
 
@@ -69,6 +73,10 @@ if __name__ == "__main__":
     # Get file path and results directory
     original_data_loc = get_file_path(args.root_dir, args.topic, args.date)
     results_dir = get_results_dir(args.root_dir, args.topic, args.date)
+
+    # If extracting frames, getting embeddings, getting descriptions, or collapsing, add API key to environment
+    if args.extract_frames or args.get_embeddings or args.get_descriptions or args.collapse_within_day or args.collapse_into_store:
+        prepare_to_load_model(api_key_loc=args.api_key_loc)
 
     # Check whether the results directory exists; if not, create it
     if not os.path.exists(results_dir):
@@ -108,6 +116,7 @@ if __name__ == "__main__":
         print("Getting cluster descriptions...")
         get_cluster_descriptions(input_file=os.path.join(results_dir, 'frame_cluster_results.csv'),
                                 output_file=os.path.join(results_dir, 'frame_cluster_results.csv'),
+                                api_key_loc=args.api_key_loc,
                                 n_samp=10,
                                 model='gpt-4-turbo-preview'
                                 )    
@@ -148,3 +157,28 @@ if __name__ == "__main__":
                                             topic=args.topic,
                                             last_day=args.date
                                             )
+        
+
+    if args.add_result_to_website:
+        print("Adding result to website...")
+        # Check if website dir exists
+        if not os.path.exists(args.website_dir):
+            raise FileNotFoundError(f"Directory {args.website_dir} does not exist.")
+        # Move the file `frame_cluster_activity_across_time.html` in the results_dir to the website directory
+        import shutil
+        moveto_loc = os.path.join(args.website_dir, args.topic, f'{args.date}.html')
+        shutil.copy(os.path.join(results_dir, 'frame_cluster_activity_across_time.html'), 
+                    moveto_loc)
+        print(f"Moved {os.path.join(results_dir, 'frame_cluster_activity_across_time.html')} to {moveto_loc}.")
+        # Recreate the README.md file in the website directory, based on the files present
+        # Each subdirectory of args.website is a topic, which gets a ### header. Each file gets a link with the filename (minus .html).
+        with open(os.path.join(args.website_dir, 'README.md'), 'w') as f:
+            f.write("# Social media analysis of May 29 South African elections using LLM-driven frame extraction\n" +
+                    "Analysis of social media posts related to the May 29, 2024 South Africa elections.\n\n" +
+                    "## Time series of frames expressed in social media posts\n\n")
+            for topic in os.listdir(args.website_dir):
+                if os.path.isdir(os.path.join(args.website_dir, topic)) and topic != '.git':
+                    f.write(f"\n### {topic}\n")
+                    for file in os.listdir(os.path.join(args.website_dir, topic)):
+                        if file.endswith('.html'):
+                            f.write(f"- [{file[:-5]}]({os.path.join(topic, file)})\n")

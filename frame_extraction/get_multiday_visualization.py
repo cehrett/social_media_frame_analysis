@@ -18,6 +18,7 @@ def get_single_and_multiday_visualizations(frame_cluster_results_loc,
                                            topic=None, 
                                            last_day=None):
     
+    
     # Check if 'frame_cluster_results_across_days.csv' exists in the directory
     if os.path.exists(os.path.join(frame_cluster_results_loc, topic, last_day, 'frame_cluster_results_into_store.csv')):
         frame_cluster_results_path = os.path.join(frame_cluster_results_loc, topic, last_day, 'frame_cluster_results_into_store.csv')
@@ -30,7 +31,7 @@ def get_single_and_multiday_visualizations(frame_cluster_results_loc,
     
     # Get single-day visualization figures:
     fig1_html, fig2_html, fig3_html = visualize_frame_cluster_across_time(
-        frame_cluster_results_loc=os.path.join(frame_cluster_results_loc, topic, last_day, frame_cluster_results_path),
+        frame_cluster_results_loc=frame_cluster_results_path,
         original_data_loc=original_data_loc,
         frame_cluster_embeddings_loc=frame_cluster_embeddings_loc,
         num_bins=num_bins,

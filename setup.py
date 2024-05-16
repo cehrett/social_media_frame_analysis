@@ -24,7 +24,9 @@ setup(
         'scikit-learn',  # Scikit-learn for machine learning
         'hdbscan',  # For clustering
         'tqdm',  # For progress bars
-        'langchain'  
+        'langchain',
+        'tiktoken',
+        'umap-learn',  # Uniform Manifold Approximation and Projection for Dimension Reduction
     ],
     python_requires='>=3.9.18',
 )

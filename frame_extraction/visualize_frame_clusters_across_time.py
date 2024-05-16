@@ -160,7 +160,6 @@ def visualize_frame_cluster_across_time(frame_cluster_results_loc,
     # Rename og_df id_col to match fc_df id_col
     og_df.rename(columns={id_col: 'id'}, inplace=True)
     fc_df = fc_df.merge(og_df[['id', time_col]], on='id', how='left')
-    # import pdb; pdb.set_trace()
 
     if bin_times:
         # Bin the times
@@ -169,7 +168,6 @@ def visualize_frame_cluster_across_time(frame_cluster_results_loc,
             min_time = fc_df[time_col].min()
             print(f'Min time: {min_time}')
         if max_time == None:
-            import pdb; pdb.set_trace()
             max_time = fc_df[time_col].max() + pd.to_timedelta(1, unit=round_to_nearest)
             print(f'Max time: {max_time}')
         range_seconds = (max_time - min_time).total_seconds()
