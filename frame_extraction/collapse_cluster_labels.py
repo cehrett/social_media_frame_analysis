@@ -25,6 +25,8 @@ Two clusters are semantically equivalent if they **mutually entail each other**,
 For each cluster in Table 1 - Corpus, you must provide the corresponding cluster label from Table 0 - Store. \
 If the cluster from Table 1 - Corpus is not semantically equivalent to any cluster in Table 0 - Store, \
 then you most provide the cluster label "new_cluster" instead of an integer cluster label. \
+New clusters should be rare. The expectation is that most clusters in \
+Table 1 - Corpus will be semantically equivalent to some cluster in Table 0 - Store.
 
 # RESPONSE
 You must respond in JSON format. Return only JSON, with no additional text. \
@@ -83,6 +85,7 @@ You must find each cluster from the table which is semantically equivalent to so
 Two clusters are semantically equivalent if they mutually entail each other, i.e., if their frames express the same meaning. \
 For each cluster in the table that is semantically equivalent to some other cluster in the table, \
 you must provide both cluster labels in your output. \
+The expectation is that most clusters will be semantically equivalent to some other cluster in the table.
 
 # RESPONSE
 You must respond in JSON format. Return only JSON, with no additional text. \
@@ -227,7 +230,12 @@ def convert_string_to_dict(input_str, labels=['is_equivalent', 'equivalent_to'],
             new_label += 1
             result_dict[new_label] = int(item[labels[1]])
         else:
-            result_dict[int(item[labels[0]])] = int(item[labels[1]])
+            try:
+                cluster_label = int(item[labels[0]])
+            except ValueError:
+                print(f'Error: Could not convert cluster label {item[labels[0]]} to int. Continuing...')
+                continue
+            result_dict[cluster_label] = int(item[labels[1]])
     
     return result_dict
 
@@ -387,7 +395,6 @@ def create_html_output_log(markdown_tables, markdown_final_table, model, output_
 
 
 def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=None):
-
     # If across_days is True, then store_loc should not be provided
     if across_days and store_loc:
         raise ValueError("Cannot collapse cluster labels across days if a store_loc is provided.")
@@ -488,6 +495,7 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
             # Add the new_label_df to dfs[0]
             dfs[0] = pd.concat([dfs[0], new_label_df], ignore_index=True)
 
+        import pdb; pdb.set_trace()
         # Save the modified store DataFrame to a CSV file in the store_loc location
         dfs[0].to_csv(os.path.join(root_dir, topic, store_loc), index=False)
         print(f"Cluster labels in the store have been updated and saved to {store_loc}.")        

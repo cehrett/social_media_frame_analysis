@@ -6,6 +6,7 @@ from .get_multiday_visualization import get_single_and_multiday_visualizations
 from .collapse_cluster_labels import collapse
 from .get_cluster_description import get_cluster_descriptions
 from .utils.load_llm_model import prepare_to_load_model
+from .utils.make_table_from_store import make_table
 
 import os
 
@@ -18,11 +19,14 @@ def get_file_path(root_dir, topic, date):
 
 
 # Get directory in which to store results
-def get_results_dir(root_dir, topic, date, ):
+def get_results_dir(root_dir, topic, date=None ):
     """
     Get the directory in which to store results.
     """
-    return os.path.join(root_dir, 'frame_extraction_analysis', 'outputs', topic, date)
+    if date is None:
+        return os.path.join(root_dir, 'frame_extraction_analysis', 'outputs', topic)
+    else:
+        return os.path.join(root_dir, 'frame_extraction_analysis', 'outputs', topic, date)
     
 
 # Process command-line arguments
@@ -32,7 +36,9 @@ def process_command_line_args():
     """
     import argparse
     parser = argparse.ArgumentParser(description="Extract frames from a day's posts, cluster them, collapse the cluster labels within a day, then collapse them into previous day's, then visualize the week.")
-    parser.add_argument("root_dir", help="Root directory for the project. This should be the parent dir of which the topic dirs are children. Each topic dir should have csvs: YYYY-MM-DD.csv")
+    parser.add_argument("root_dir", 
+                        help="Root directory for the project. This should be the parent dir of which the topic dirs are children."
+                             "Each topic dir should have csvs: YYYY-MM-DD.csv")
     parser.add_argument("--topic", required=True, help="Topic for the analysis.")
     parser.add_argument("--date", required=True, help="Date for the analysis.")
     parser.add_argument("--system_prompt_loc", required=True, help="System prompt to give to LLM when extracting frames.")
@@ -73,6 +79,7 @@ if __name__ == "__main__":
     # Get file path and results directory
     original_data_loc = get_file_path(args.root_dir, args.topic, args.date)
     results_dir = get_results_dir(args.root_dir, args.topic, args.date)
+    store_dir = get_results_dir(args.root_dir, args.topic)
 
     # If extracting frames, getting embeddings, getting descriptions, or collapsing, add API key to environment
     if args.extract_frames or args.get_embeddings or args.get_descriptions or args.collapse_within_day or args.collapse_into_store:
@@ -161,15 +168,24 @@ if __name__ == "__main__":
 
     if args.add_result_to_website:
         print("Adding result to website...")
+
         # Check if website dir exists
         if not os.path.exists(args.website_dir):
             raise FileNotFoundError(f"Directory {args.website_dir} does not exist.")
+        
+        # Use `make_table` to convert the frame store into a table
+        store_moveto_loc = os.path.join(args.website_dir, f'{args.topic}.html')
+        make_table(input_file=os.path.join(store_dir, 'frame_store.csv'),
+                   output_file=store_moveto_loc,
+                   n_samp=6)
+        
         # Move the file `frame_cluster_activity_across_time.html` in the results_dir to the website directory
         import shutil
-        moveto_loc = os.path.join(args.website_dir, args.topic, f'{args.date}.html')
+        plots_moveto_loc = os.path.join(args.website_dir, args.topic, f'{args.date}.html')
         shutil.copy(os.path.join(results_dir, 'frame_cluster_activity_across_time.html'), 
-                    moveto_loc)
-        print(f"Moved {os.path.join(results_dir, 'frame_cluster_activity_across_time.html')} to {moveto_loc}.")
+                    plots_moveto_loc)
+        print(f"Moved {os.path.join(results_dir, 'frame_cluster_activity_across_time.html')} to {plots_moveto_loc}.")
+
         # Recreate the README.md file in the website directory, based on the files present
         # Each subdirectory of args.website is a topic, which gets a ### header. Each file gets a link with the filename (minus .html).
         with open(os.path.join(args.website_dir, 'README.md'), 'w') as f:
@@ -178,7 +194,7 @@ if __name__ == "__main__":
                     "## Time series of frames expressed in social media posts\n\n")
             for topic in os.listdir(args.website_dir):
                 if os.path.isdir(os.path.join(args.website_dir, topic)) and topic != '.git':
-                    f.write(f"\n### {topic}\n")
+                    f.write(f"\n### {topic} [(Cluster labels)]({topic}.html)\n")
                     for file in os.listdir(os.path.join(args.website_dir, topic)):
                         if file.endswith('.html'):
                             f.write(f"- [{file[:-5]}]({os.path.join(topic, file)})\n")
