@@ -495,7 +495,6 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
             # Add the new_label_df to dfs[0]
             dfs[0] = pd.concat([dfs[0], new_label_df], ignore_index=True)
 
-        import pdb; pdb.set_trace()
         # Save the modified store DataFrame to a CSV file in the store_loc location
         dfs[0].to_csv(os.path.join(root_dir, topic, store_loc), index=False)
         print(f"Cluster labels in the store have been updated and saved to {store_loc}.")        

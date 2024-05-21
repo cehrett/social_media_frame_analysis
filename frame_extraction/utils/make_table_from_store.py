@@ -29,7 +29,6 @@ def make_table(input_file, output_file, n_samp):
 
     # Subsample to get a maximum of n_samp samples per cluster_labels value
     df = df.groupby('cluster_labels').apply(lambda x: x.sample(min(len(x), n_samp))).reset_index(drop=True)
-    import pdb; pdb.set_trace()
 
     # Aggregate the 'frames' column by 'cluster_labels', so that there is one row per 'cluster_labels' value
     df = df.groupby('cluster_labels')['frames'].apply(lambda x: '<br>'.join(x)).reset_index()

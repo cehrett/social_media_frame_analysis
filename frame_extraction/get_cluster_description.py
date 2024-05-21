@@ -232,6 +232,7 @@ def parse_args():
     parser.add_argument("--input_file", type=str, required=True, help="The input file containing the frame clusters.")
     parser.add_argument("--output_file", type=str, required=True, help="The output file to save the results.")
     parser.add_argument("--n_samp", type=int, default=10, help="The number of unique texts to sample for each cluster.")
+    parser.add_argument("--api_key_loc", type=str, default='./openai_api_key.txt', help="The location of the OpenAI API key.")
     parser.add_argument("--model", type=str, default='gpt-4-turbo-preview', help="The name of the GPT model to use.")
     
     return parser.parse_args()
@@ -273,4 +274,8 @@ if __name__ == "__main__":
     # Parse command-line arguments
     args = parse_args()
 
-    get_cluster_descriptions(args.input_file, args.output_file, args.n_samp, args.model)
+    get_cluster_descriptions(input_file=args.input_file, 
+                             output_file=args.output_file, 
+                             api_key_loc=args.api_key_loc, 
+                             n_samp=args.n_samp, 
+                             model=args.model)
