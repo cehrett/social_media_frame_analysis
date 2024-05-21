@@ -11,7 +11,7 @@ def parse_args():
     - argparse.Namespace: The parsed arguments.
     """
     parser = argparse.ArgumentParser(description="Get cluster descriptions for frame clusters.")
-    parser.add_argument("--input_file", type=str, required=True, help="The input file containing the frame clusters."
+    parser.add_argument("--clusters_input", type=str, required=True, help="The input file containing the frame clusters."
                         "Should be a csv with columns 'frames', 'cluster_labels', and 'description'.")
     parser.add_argument("--output_file", type=str, required=True, help="The output html filepath to save the results.")
     parser.add_argument("--n_samp", type=int, default=6, help="The number of unique texts to sample for each cluster.")
@@ -19,10 +19,10 @@ def parse_args():
     return parser.parse_args()
 
 
-def make_table(input_file, output_file, n_samp):
+def make_table(clusters_input, output_file, n_samp):
 
     # Read the input file
-    df = pd.read_csv(input_file)
+    df = pd.read_csv(clusters_input)
 
     # Drop duplicates with respect to the 'frames' and 'cluster_labels' columns
     df = df.drop_duplicates(subset=['frames', 'cluster_labels'])
@@ -37,7 +37,7 @@ def make_table(input_file, output_file, n_samp):
     df = df[['cluster_labels', 'frames']]
 
     # Create an html file that displays the resulting df
-    df.to_html(output_file, index=False)
+    df.to_html(output_file, index=False, escape=False)
                
     # Print the location of the output log file
     print(f"HTML output log file saved to {output_file}.")
@@ -47,4 +47,4 @@ if __name__ == '__main__':
     # Parse command-line arguments
     args = parse_args()
     
-    make_table(args.input_file, args.output_file, args.n_samp)
+    make_table(args.clusters_input, args.output_file, args.n_samp)

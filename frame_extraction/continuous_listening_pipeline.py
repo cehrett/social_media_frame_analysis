@@ -175,7 +175,7 @@ if __name__ == "__main__":
         
         # Use `make_table` to convert the frame store into a table
         store_moveto_loc = os.path.join(args.website_dir, f'{args.topic}.html')
-        make_table(input_file=os.path.join(store_dir, 'frame_store.csv'),
+        make_table(clusters_input=os.path.join(store_dir, 'frame_store.csv'),
                    output_file=store_moveto_loc,
                    n_samp=6)
         
