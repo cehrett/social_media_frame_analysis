@@ -35,7 +35,8 @@ def process_command_line_args():
     Process command-line arguments.
     """
     import argparse
-    parser = argparse.ArgumentParser(description="Extract frames from a day's posts, cluster them, collapse the cluster labels within a day, then collapse them into previous day's, then visualize the week.")
+    parser = argparse.ArgumentParser(description="Extract frames from a day's posts, cluster them, \
+    collapse the cluster labels within a day, then collapse them into previous day's, then visualize the week.")
     parser.add_argument("root_dir", 
                         help="Root directory for the project. This should be the parent dir of which the topic dirs are children."
                              "Each topic dir should have csvs: YYYY-MM-DD.csv")
@@ -43,10 +44,14 @@ def process_command_line_args():
     parser.add_argument("--date", required=True, help="Date for the analysis.")
     parser.add_argument("--system_prompt_loc", required=True, help="System prompt to give to LLM when extracting frames.")
 
-    parser.add_argument("--labeled_data_path", default='/zfs/disinfo/narratives/labeled_data.csv', help="Path to labeled data CSV. Defaults to '/zfs/disinfo/narratives/labeled_data.csv'.")
+    parser.add_argument("--labeled_data_path", default='/zfs/disinfo/narratives/labeled_data.csv', 
+        help="Path to labeled data CSV. Defaults to '/zfs/disinfo/narratives/labeled_data.csv'.")
     parser.add_argument("--text_col", default='Message', help="Name of the text column.")
     parser.add_argument("--api_key_loc", default='./openai_api_key.txt', help="Location of text file containing OpenAI API key.")
-    parser.add_argument("--raw_csv_or_intermediate", default='c', help="Whether to use the input path data file implied by the 'root_dir', 'topic' and 'date' inputs (c), or an intermediate file (i). Default (c). Only use (i) if previous frame extraction was interrupted before completion.")
+    parser.add_argument("--raw_csv_or_intermediate", default='c', 
+        help="Whether to use the input path data file implied by the 'root_dir', \
+        'topic' and 'date' inputs (c), or an intermediate file (i). Default (c). \
+        Only use (i) if previous frame extraction was interrupted before completion.")
 
     parser.add_argument("--umap_dim", default=50, help="Number of dimensions for UMAP.")
     parser.add_argument("--min_cluster_size", default=10, help="Minimum cluster size for HDBSCAN.")
@@ -177,7 +182,10 @@ if __name__ == "__main__":
         store_moveto_loc = os.path.join(args.website_dir, f'{args.topic}.html')
         make_table(clusters_input=os.path.join(store_dir, 'frame_store.csv'),
                    output_file=store_moveto_loc,
-                   n_samp=6)
+                   n_samp=6,
+                   topic_dir=args.topic,
+                   id_col=args.id_col,
+                   text_col=args.text_col)
         
         # Move the file `frame_cluster_activity_across_time.html` in the results_dir to the website directory
         import shutil
@@ -188,10 +196,24 @@ if __name__ == "__main__":
 
         # Recreate the README.md file in the website directory, based on the files present
         # Each subdirectory of args.website is a topic, which gets a ### header. Each file gets a link with the filename (minus .html).
+        intro_paragraph = """\
+Below is a list of dates for each of several topics. \
+For each topic, every day we collect the tweets that reference that topic. \
+Then we feed each tweet to an AI pipeline that identifies any and all \
+claims of broad social significance expressed in the tweet – which we call “frames”. \
+E.g., “Ready to vote to keep Ramaphosa at the helm where he belongs” expresses the frame \
+“Ramaphosa should win reelection”, whereas “Whoa, just served Ramaphosa’s son in the Starbucks I work in” \
+does not express any frames. Once we have the frames expressed by each tweet, \
+we group them together into clusters that all express variants of roughly the same frame. \
+Then we track the activity of these clusters over time, to see what frames are being discussed online. \
+The link for each date goes to a page with plots showing topic activity for that date, \
+as well as for the week preceding that date. \
+For each topic, a separate page provides a list of all clusters of frames found for that topic.\n\n"""
         with open(os.path.join(args.website_dir, 'README.md'), 'w') as f:
             f.write("# Social media analysis of May 29 South African elections using LLM-driven frame extraction\n" +
                     "Analysis of social media posts related to the May 29, 2024 South Africa elections.\n\n" +
-                    "## Time series of frames expressed in social media posts\n\n")
+                    "## Time series of frames expressed in social media posts\n\n" + 
+                    intro_paragraph + "\n\n")
             for topic in os.listdir(args.website_dir):
                 if os.path.isdir(os.path.join(args.website_dir, topic)) and topic != '.git':
                     f.write(f"\n### {topic} [(Cluster labels)]({topic}.html)\n")
