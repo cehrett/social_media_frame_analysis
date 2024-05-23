@@ -1,5 +1,5 @@
 # Imports
-from .extract_frames import process_and_save_tweets
+from .extract_frames import process_and_save_posts
 from .get_frame_embeddings import get_embeddings
 from .cluster_frames import cluster_embeddings
 from .get_multiday_visualization import get_single_and_multiday_visualizations
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     # Extract frames, get embeddings, cluster embeddings, and visualize frame clusters across time
     if args.extract_frames:
         print("Extracting frames...")
-        process_and_save_tweets(input_path=original_data_loc,
+        process_and_save_posts(input_path=original_data_loc,
                                 results_dir=results_dir,
                                 labeled_data_path=args.labeled_data_path,
                                 text_col=args.text_col,

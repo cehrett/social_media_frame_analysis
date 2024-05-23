@@ -1,6 +1,9 @@
 
 import os
 
+import sys
+print(sys.path)
+
 # # Config:
 # # User-defined inputs
 # data_path = os.path.join('/', 'zfs', 'disinfo', 'qatar', 'data', 'split_files', 'part_1.csv')
@@ -40,7 +43,7 @@ import os
 # round_to_nearest = 'H'
 
 # # Which parts of the pipeline to run
-# do_process_and_save_tweets = True
+# do_process_and_save_posts = True
 # do_get_embeddings = True
 # do_cluster_embeddings = True
 # do_run_analysis = False
@@ -88,7 +91,7 @@ def parse_command_line_arguments():
     parser.add_argument("--bin_times", action='store_true', help="Whether to bin the times.")
 
     # Which parts of the pipeline to run
-    parser.add_argument("--do_process_and_save_tweets", action='store_true', help="Extract frames from a day's posts.")
+    parser.add_argument("--do_process_and_save_posts", action='store_true', help="Extract frames from a day's posts.")
     parser.add_argument("--do_get_embeddings", action='store_true', help="Get embeddings for the frames.")
     parser.add_argument("--do_cluster_embeddings", action='store_true', help="Cluster the embeddings of the frames.")
     parser.add_argument("--do_run_analysis", action='store_true', help="Run analysis to identify suspicious frame clusters.")
@@ -125,7 +128,7 @@ def full_pipeline(data_path,
                   time_col, 
                   round_to_nearest, 
                   bin_times,
-                  do_process_and_save_tweets, 
+                  do_process_and_save_posts, 
                   do_get_embeddings, 
                   do_cluster_embeddings, 
                   do_run_analysis, 
@@ -133,9 +136,9 @@ def full_pipeline(data_path,
                   do_visualize_frame_cluster_across_time
                   ):
     
-    if do_process_and_save_tweets:
-        from frame_extraction.extract_frames import process_and_save_tweets
-        process_and_save_tweets(data_path,
+    if do_process_and_save_posts:
+        from frame_extraction.extract_frames import process_and_save_posts
+        process_and_save_posts(data_path,
                             results_dir=output_dir,
                             text_col=text_col,
                             api_key_loc=api_key_loc,
@@ -232,7 +235,7 @@ if __name__ == "__main__":
                   args.time_col, 
                   args.round_to_nearest, 
                   args.bin_times,
-                  args.do_process_and_save_tweets, 
+                  args.do_process_and_save_posts, 
                   args.do_get_embeddings, 
                   args.do_cluster_embeddings, 
                   args.do_run_analysis, 
