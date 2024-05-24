@@ -11,7 +11,7 @@ import markdown
 # Define system prompt
 collapse_into_store_system_prompt = """\
 # CONTEXT
-You are a data scientist working for a research orfganization that studies disinformation campaigns. \
+You are a data scientist working for a research organization that studies disinformation campaigns. \
 Your team is analyzing a text to identify clusters of "frames" that are semantically equivalent to a pre-existing store of frames. \
 A "frame" is a factual or moral claim of broad social significance. \
 The user will provide two tables that represent clusters of "frames", Table 0 - Store and Table 1 - Corpus. \
