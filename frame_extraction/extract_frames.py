@@ -1,9 +1,9 @@
 import os
 import csv
 import traceback
-from .utils.extract_theories_from_tweets import process_tweets
+from .utils.extract_theories_from_posts import process_posts
 
-def process_and_save_tweets(input_path, 
+def process_and_save_posts(input_path, 
                             results_dir='./', 
                             labeled_data_path='./data/labeled_data.csv', 
                             text_col='text', 
@@ -15,8 +15,8 @@ def process_and_save_tweets(input_path,
     output_path = os.path.join(results_dir, 'frame_extraction_results.csv')
     
     try:
-        df_with_frames = process_tweets(input_path=input_path,
-                                        tweet_col=text_col,
+        df_with_frames = process_posts(input_path=input_path,
+                                        post_col=text_col,
                                         intermediate_path=intermediate_path, 
                                         output_path=output_path, 
                                         labeled_data_path=labeled_data_path, 
@@ -37,7 +37,7 @@ def process_and_save_tweets(input_path,
 
 if __name__ == "__main__":
     import argparse
-    parser = argparse.ArgumentParser(description="Process and save tweets.")
+    parser = argparse.ArgumentParser(description="Process and save posts.")
     parser.add_argument("input_path", help="Path to the input CSV file.")
     parser.add_argument("--results_dir", default=os.path.join('.', 'output'), help="Directory where results (and intermediate temp file) will be written.")
     parser.add_argument("--labeled_data_path", default=os.path.join('.', 'data', 'labeled_data.csv'), help="Path for labeled data file.")
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     parser.add_argument("--system_prompt_loc", default=os.path.join('.', 'utils', 'oai_system_message_template.txt'), help="System prompt to give to LLM when extracting frames.")
     args = parser.parse_args()
 
-    process_and_save_tweets(input_path=args.input_path,
+    process_and_save_posts(input_path=args.input_path,
                             results_dir=args.results_dir,
                             labeled_data_path=args.labeled_data_path,
                             text_col=args.text_col,

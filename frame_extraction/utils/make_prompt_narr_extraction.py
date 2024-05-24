@@ -12,13 +12,13 @@ with open(oai_system_message_file_path, 'r') as file:
     oai_system_message_template = file.read()
     
 
-def make_prompt_for_oai_narr_extr(tweet, 
+def make_prompt_for_oai_narr_extr(post, 
                                   examples, 
                                   system_template=oai_system_message_template,
                                  ):
     from langchain.schema import AIMessage, HumanMessage, SystemMessage
     """
-    Examples should be given as a list of dicts each with two k/v pairs: tweet and label.
+    Examples should be given as a list of dicts each with two k/v pairs: post and label.
     """
     
     # Initialize messages list
@@ -29,10 +29,10 @@ def make_prompt_for_oai_narr_extr(tweet,
     
     # Add each example
     for example in examples:
-        messages.append(HumanMessage(content=example['tweet'], example=True))
+        messages.append(HumanMessage(content=example['post'], example=True))
         messages.append(AIMessage(content=example['label'], example=True))
     
-    messages.append(HumanMessage(content=tweet, example=False))
+    messages.append(HumanMessage(content=post, example=False))
     
     return messages
 
@@ -58,5 +58,5 @@ def load_labeled_examples(df,
     sampled_df = sampled_df.sample(frac=1).reset_index(drop=True)
 
     # Converting the DataFrame to a list of dictionaries
-    list_of_dicts = sampled_df[['tweet','label']].to_dict('records')
+    list_of_dicts = sampled_df[['post','label']].to_dict('records')
     return list_of_dicts

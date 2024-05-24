@@ -18,7 +18,7 @@ def parse_args():
     # Argument parsing
     parser = argparse.ArgumentParser(description="Process some files.")
     parser.add_argument('-i', '--input_path', required=True, help="Path to the input CSV or Excel directory.")
-    parser.add_argument('-t', '--tweet_col', required=True, help="Name of the column containing tweet text.")
+    parser.add_argument('-t', '--post_col', required=True, help="Name of the column containing post text.")
     parser.add_argument('-int', '--intermediate_path', required=True, help="Path to save intermediate results CSV.")
     parser.add_argument('-o', '--output', required=True, help="Path to save final results CSV.")
     parser.add_argument('-l', '--labeled_data_path', default='/zfs/disinfo/narratives/labeled_data.csv', help="Path to labeled data CSV. Defaults to '/zfs/disinfo/narratives/labeled_data.csv'.")
@@ -26,15 +26,15 @@ def parse_args():
     return args
 
 def get_results_from_row(row, 
-                         tweet_col, 
+                         post_col, 
                          model, 
                          labeled_df,
                          system_prompt
                         ):
     # Define helper function that will extract theory from a row of the df.
-    # This function will use a random sampling of the labeled data to create a FSL prompt each time it extracts theories from a tweet.
-    # Get the tweet from this row
-    text = row[tweet_col]
+    # This function will use a random sampling of the labeled data to create a FSL prompt each time it extracts theories from a post.
+    # Get the post from this row
+    text = row[post_col]
 
     # Make a prompt using randomly sampled labeled data
     random_labeled_data = load_labeled_examples(labeled_df)
@@ -51,8 +51,8 @@ def get_results_from_row(row,
     time.sleep(0.05) 
     return(narrs)
 
-def process_tweets(input_path, 
-                   tweet_col, 
+def process_posts(input_path, 
+                   post_col, 
                    intermediate_path, 
                    output_path, 
                    labeled_data_path='./data/labeled_data.csv',
@@ -91,7 +91,7 @@ def process_tweets(input_path,
     with open(system_prompt_loc, 'r') as file:
         system_prompt = file.read()
 
-    # Load either raw tweet excel files, or intermediate results
+    # Load either raw post excel files, or intermediate results
     if not raw_csv_or_intermediate:
         user_input = input("Load raw csv files (c) or intermediate results (i)?")
     else:
@@ -107,7 +107,7 @@ def process_tweets(input_path,
 
     print('Data loaded.')
 
-    # Tweet content is in 'tweet_col' column
+    # Post content is in 'post_col' column
     labeled_df = pd.read_csv(labeled_data_path)
 
     # Loop through chunks of the df, getting and saving results for each chunk.
@@ -120,8 +120,8 @@ def process_tweets(input_path,
     # Replace URLs with a placeholder
     # import pdb; pdb.set_trace()
     # Drop nas first
-    df = df[df[tweet_col].notna()]
-    df['normalized_text'] = df[tweet_col].apply(lambda x: re.sub(r'http\S+', 'http:URL', x))
+    df = df[df[post_col].notna()]
+    df['normalized_text'] = df[post_col].apply(lambda x: re.sub(r'http\S+', 'http:URL', x))
     # Replace Twitter usernames with a placeholder
     df['normalized_text'] = df['normalized_text'].apply(lambda x: re.sub(r'@\S+', '@USER', x))
     # Deduplicate based on the normalized text
@@ -179,4 +179,4 @@ def process_tweets(input_path,
 
 if __name__ == "__main__":
     args = parse_args()
-    process_tweets(args.input_path, args.tweet_col, args.intermediate_path, args.output, args.labeled_data_path)
+    process_posts(args.input_path, args.post_col, args.intermediate_path, args.output, args.labeled_data_path)

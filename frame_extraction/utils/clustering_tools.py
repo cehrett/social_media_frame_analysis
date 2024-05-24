@@ -5,6 +5,7 @@ import hdbscan.prediction as hdb_predict
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
 from sklearn.manifold import TSNE
 import seaborn as sns  # This is optional, but it makes plots look nicer
 import datetime
@@ -34,7 +35,7 @@ def get_theories_and_embeddings_using_dict(df, data_dict, theory_col='frames', i
     ids_with_duplicates = []
 
     # Iterate over each list in the 'theory' column and the 'id_col' column of the dataframe
-    for sublist, tweet_id in zip(df[theory_col], df[id_col]):
+    for sublist, post_id in zip(df[theory_col], df[id_col]):
         # Iterate over each theory in the list
         for theory in sublist:
             # If the theory has an embedding in the data_dict, append it to the lists
@@ -43,7 +44,7 @@ def get_theories_and_embeddings_using_dict(df, data_dict, theory_col='frames', i
             if theory in data_dict:
                 theories_with_duplicates.append(theory)
                 embeddings_with_duplicates.append(data_dict[theory])
-                ids_with_duplicates.append(tweet_id)  # Append the corresponding ID
+                ids_with_duplicates.append(post_id)  # Append the corresponding ID
                 
     # Return the results as a dictionary
     return({
@@ -357,13 +358,13 @@ e.g., "Biden is too old".
 def plot_based_on_query(query_theories, theory_df, cluster_df, n=20, add_sum_line=True, filters=None, toptype='relevance', embeddings=None):
     """
     Given a list of queries (as strings), find the clusters of theories that are closest in relevance to (any of) those queries. Then plot the proportion of
-    tweets that fall in those clusters across time. Returns the embeddings of the query_theories and a copy of the cluster_df that contains a column
+    posts that fall in those clusters across time. Returns the embeddings of the query_theories and a copy of the cluster_df that contains a column
     describing the relevance of that row to the queries.
     
     Parameters:
     - query_theories: list of strings, the queries.
     - theory_df: pandas df, with each theory along with its cluster label
-    - cluster_df: pandas df, with one row per cluster, and with one column for each time period. Values are proportion of tweets in that cluster.
+    - cluster_df: pandas df, with one row per cluster, and with one column for each time period. Values are proportion of posts in that cluster.
     - n: int, number of clusters
     - add_sum_line: bool, whether to plot a line that sums the others
     - filters: dict, constraints on which clusters to include, e.g., {0: lambda x: x==0} to include only clusters that don't appear in time period 0
