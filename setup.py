@@ -25,6 +25,7 @@ setup(
         'hdbscan',  # For clustering
         'tqdm',  # For progress bars
         'langchain',
+        'langchain_community',
         'tiktoken',
         'umap-learn',  # Uniform Manifold Approximation and Projection for Dimension Reduction
     ],
