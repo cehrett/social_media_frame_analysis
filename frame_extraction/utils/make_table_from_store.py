@@ -99,6 +99,9 @@ def make_table(clusters_input, output_file, n_samp, topic_dir, id_col='Universal
     # Drop all columns except 'cluster_labels', `post` and 'frames'
     df = df[['cluster_labels', 'post', 'frames']]
 
+    # Drop the row corresponding to cluster label -1
+    df = df[df['cluster_labels'] != -1]
+
     # Create an html file that displays the resulting df
     df.to_html(output_file, index=False, escape=False)
                
