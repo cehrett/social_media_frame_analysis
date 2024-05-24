@@ -79,7 +79,7 @@ def create_markdown_table(df, n_samp=5, include_descriptions=False):
 
 def get_llm_descriptions(markdown_table, 
                          system_prompt, 
-                         model='gpt-4-turbo-preview'):
+                         model='gpt-4o'):
     """
     Writes cluster descriptions using an OpenAI model.
 
@@ -233,7 +233,7 @@ def parse_args():
     parser.add_argument("--output_file", type=str, required=True, help="The output file to save the results.")
     parser.add_argument("--n_samp", type=int, default=10, help="The number of unique texts to sample for each cluster.")
     parser.add_argument("--api_key_loc", type=str, default='./openai_api_key.txt', help="The location of the OpenAI API key.")
-    parser.add_argument("--model", type=str, default='gpt-4-turbo-preview', help="The name of the GPT model to use.")
+    parser.add_argument("--model", type=str, default='gpt-4o', help="The name of the GPT model to use.")
     
     return parser.parse_args()
 
