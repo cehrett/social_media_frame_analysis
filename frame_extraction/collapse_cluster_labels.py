@@ -114,7 +114,7 @@ You must find each cluster from the table which is semantically equivalent to so
 Two clusters are semantically equivalent if they mutually entail each other, i.e., if their frames express the same meaning. \
 For each cluster in the table that is semantically equivalent to some other cluster in the table, \
 you must provide both cluster labels in your output. \
-You must reduce the number of clusters to EXACTLY {n_clusters} unique clusters. \
+Provide the largest number of semantically equivalent pairs. \
 
 # RESPONSE
 You must respond in JSON format. Return only JSON, with no additional text. \
@@ -125,8 +125,7 @@ There should be one dictionary for each pair of semantically equivalent clusters
 If you find that a cluster is semantically equivalent to multiple other clusters in the table, \
 select "equivalent_to" to be the single cluster in the table that is most semantically equivalent to the "is_equivalent" cluster. \
 In other words, each cluster should be listed at most once in the "is_equivalent" position. \
-Clusters are permitted to appear multiple times in the "equivalent_to" position, if appropriate. \
-{reduction} will be the number of dictionaries in the list.
+Clusters are permitted to appear multiple times in the "equivalent_to" position, if appropriate.
 """
 
 # Parse arguments
@@ -550,7 +549,7 @@ def collapse_store(root_dir, topic, model, store_loc, n_clusters=60):
 
     cluster_num = dfs[0]["cluster_labels"].nunique()
 
-    llm_output = get_llm_clusters(markdown_tables, system_prompt=collapse_store_system_prompt.format(n_samp = 5, n_clusters=n_clusters, reduction= cluster_num - int(n_clusters)), model=model)
+    llm_output = get_llm_clusters(markdown_tables, system_prompt=collapse_store_system_prompt.format(n_samp = 5), model=model)
 
     # First, back up the old store
     dfs[0].to_csv(os.path.join(root_dir, topic, store_loc[:-4] + '_backup.csv'), index=False)
@@ -560,7 +559,26 @@ def collapse_store(root_dir, topic, model, store_loc, n_clusters=60):
 
     # Convert the LLM output string to a dictionary
     mapping_dict = convert_string_to_dict(llm_output, labels=labels, max_existing_label=max_existing_label)
+    
+    # Check if length of cluster return is at least the necessary size
+    repeat = 0
+    while (len(mapping_dict) < cluster_num - int(n_clusters)) and repeat <= 2:
+        # If LLM did not return a sufficient number of pairs, prompt, update, and repeat until it does!
+        dfs[-1] = rename_cluster_labels(dfs[-1], mapping_dict)
+        markdown_tables = [create_individual_markdown_table(dfs[-1], n_samp=5, df_index='')]
+        cluster_num = dfs[0]["cluster_labels"].nunique()
+        llm_output = get_llm_clusters(markdown_tables, system_prompt=collapse_store_system_prompt.format(n_samp = 5), model=model)
+        mapping_dict = convert_string_to_dict(llm_output, labels=labels, max_existing_label=max_existing_label)
 
+        # Update the number of necessary pairings on each iteration
+        n_clusters = int(n_clusters) - (cluster_num - int(n_clusters))
+
+        repeat+=1
+        print(cluster_num, n_clusters)
+
+    # Once satisfied, truncate dictionary to appropriate length
+    print(cluster_num, n_clusters)
+    mapping_dict = dict(list(mapping_dict.items())[:cluster_num - int(n_clusters)])
     dfs[-1] = rename_cluster_labels(dfs[-1], mapping_dict)
 
     # Save the modified store DataFrame to a CSV file in the store_loc location
