@@ -26,6 +26,7 @@ setup(
         'tqdm',  # For progress bars
         'langchain',
         'langchain_community',
+        'langchain_core',
         'tiktoken',
         'umap-learn',  # Uniform Manifold Approximation and Projection for Dimension Reduction
     ],
