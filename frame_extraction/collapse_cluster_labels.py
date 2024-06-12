@@ -6,7 +6,8 @@ import argparse
 from openai import OpenAI
 import json
 import markdown
-
+from .utils.token_utils import num_tokens_from_messages
+from .utils.token_utils import partition_prompt
 
 # Define system prompt
 collapse_into_store_system_prompt = """\
@@ -203,23 +204,67 @@ def get_llm_clusters(markdown_tables,
     Returns:
         str: The cluster pairings discovered by the GPT model.
     """
-    
-    client = OpenAI()
 
     # Get single string of all markdown tables
     newline_joined_markdown_tables = '\n'.join(markdown_tables)
 
-    completion = client.chat.completions.create(
-    model=model,
-    messages=[
+    message = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": f"# TABLES\n{newline_joined_markdown_tables}"}
     ]
-    )
+
+    tokens = num_tokens_from_messages(message, model)
+
+    responses = []
+    
+    if tokens >= 63000:
+        print("Message length sufficiently large, creating sub-processes")
+        partitioned_markdown_tables = partition_prompt(message, model)
+
+        # For each partitioned markdown table, make separate API call
+        for markdown_table in partitioned_markdown_tables:
+            client = OpenAI()
+
+            completion = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"# TABLES\n{markdown_table}"}
+            ]
+            )
+            
+           # Append each API call message content to response string (removing the ```json and ending ```)
+            raw_string = completion.choices[0].message.content.replace('```json\n', '')
+            processed_string = raw_string.replace('```', '')
+            responses.append(processed_string)
+
+        # String cleaning and processing
+        responses = [s for s in responses if s.strip() and s != '[]']
+        responses = [eval(dictionary) for dictionary in responses if eval(dictionary)]
+
+        temp_response = ''
+
+        for response in responses:
+            for dictionary in response:
+                temp_response += json.dumps(dictionary) + ',\n'
+
+        response = '```json\n[' + temp_response[:-2] + ']\n```'
+
+
+    else:
+        client = OpenAI()
+                
+        completion = client.chat.completions.create(
+        model=model,
+        messages=message
+        )
+
+        response = completion.choices[0].message.content
 
     print(f'Cluster pairings discovered by {model}:')
-    print(f'{completion.choices[0].message.content}')
-    return completion.choices[0].message.content
+    print(f'{response}')
+    
+    return response
 
 
 def convert_string_to_dict(input_str, labels=['is_equivalent', 'equivalent_to'], max_existing_label=None):
