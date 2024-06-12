@@ -8,6 +8,8 @@ from IPython.display import display
 from IPython.display import Markdown
 import markdown
 from .utils.load_llm_model import prepare_to_load_model
+from .utils.token_utils import num_tokens_from_messages
+from .utils.token_utils import partition_prompt
 
 
 # Define system prompt
@@ -91,20 +93,63 @@ def get_llm_descriptions(markdown_table,
     Returns:
         str: The descriptions produced by the GPT model.
     """
-    
-    client = OpenAI()
 
-    completion = client.chat.completions.create(
-    model=model,
-    messages=[
-        {"role": "system", "content": system_prompt},
+    # Check token length of prompt, and issues sub-processes if necessary
+    message = [
+        {"role": "system", "content": get_cluster_description_prompt},
         {"role": "user", "content": f"# TABLES\n{markdown_table}"}
     ]
-    )
+
+    tokens = num_tokens_from_messages(message, model)
+
+    responses = []
+    
+    if tokens >= 63000:
+        print("Message length sufficiently large, creating sub-processes")
+        partitioned_markdown_tables = partition_prompt(message, model)
+    
+        # For each partitioned markdown table, make separate API call
+        for markdown_table in partitioned_markdown_tables:
+            client = OpenAI()
+
+            completion = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"# TABLES\n{markdown_table}"}
+            ]
+            )
+            
+            # Append each API call message content to response string (removing the ```json and ending ```)
+            raw_string = completion.choices[0].message.content.replace('```json\n', '')
+            processed_string = raw_string.replace('```', '')
+            responses.append(processed_string)
+
+        # String cleaning and processing
+        responses = [s for s in responses if s.strip() and s != '{}']
+
+        responses = [eval(dictionary) for dictionary in responses if eval(dictionary)]
+
+        for dictionary in responses:
+            responses[0].update(dictionary)
+
+        response = '```json\n' + json.dumps(responses[0]) + '\n```'
+
+
+    else:
+        client = OpenAI()
+                
+        completion = client.chat.completions.create(
+        model=model,
+        messages=message
+        )
+
+        response += completion.choices[0].message.content
 
     print(f'Descriptions produced by {model}:')
-    print(f'{completion.choices[0].message.content}')
-    return completion.choices[0].message.content
+    print(f'{response}')
+
+    return response
 
 
 def convert_string_to_dict(input_str):
@@ -248,8 +293,7 @@ def get_cluster_descriptions(input_file, output_file, api_key_loc, n_samp, model
     
     # Create a Markdown table
     markdown_table = create_markdown_table(df, n_samp=n_samp)
-    
-    # Get cluster descriptions using an OpenAI model
+
     descriptions = get_llm_descriptions(markdown_table, get_cluster_description_prompt, model=model)
     
     # Convert the descriptions to a dictionary

@@ -1,5 +1,5 @@
 # Imports
-from langchain import PromptTemplate
+#from langchain_core.prompts import PromptTemplate
 import os
 
 # Import template text

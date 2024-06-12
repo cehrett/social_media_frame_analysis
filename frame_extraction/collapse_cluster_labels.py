@@ -6,7 +6,8 @@ import argparse
 from openai import OpenAI
 import json
 import markdown
-
+from .utils.token_utils import num_tokens_from_messages
+from .utils.token_utils import partition_prompt
 
 # Define system prompt
 collapse_into_store_system_prompt = """\
@@ -99,6 +100,34 @@ In other words, each cluster should be listed at most once in the "is_equivalent
 Clusters are permitted to appear multiple times in the "equivalent_to" position, if appropriate. \
 """
 
+collapse_store_system_prompt = """\
+# CONTEXT
+You are a data scientist working for a research organization that studies disinformation campaigns. \
+Your team is analyzing a text corpus of social media posts to identify clusters of "frames" that are semantically equivalent. \
+A "frame" is a factual or moral claim of broad social significance. \
+The user will provide a tables that represents clusters of "frames". \
+The table represents a clustering of the frames expressed by the social media posts in the text corpus.
+The left column of the table is the cluster label. The right column of the table is a sample of up to {n_samp} unique frames \
+from that cluster. The frames are separated by "<br>".
+
+# OBJECTIVE
+You must find each cluster from the table which is semantically equivalent to some other cluster in the table. \
+Two clusters are semantically equivalent if they mutually entail each other, i.e., if their frames express the same meaning. \
+For each cluster in the table that is semantically equivalent to some other cluster in the table, \
+you must provide both cluster labels in your output. \
+Provide the largest number of semantically equivalent pairs. \
+
+# RESPONSE
+You must respond in JSON format. Return only JSON, with no additional text. \
+Your response should be a list of dictionaries. Each dictionary should have two key-value pairs: \
+"is_equivalent" and "equivalent_to". \
+In all such semantically equivalent pairs, the higher of the two cluster labels should be listed first, as "is_equivalent". \
+There should be one dictionary for each pair of semantically equivalent clusters in the table. \
+If you find that a cluster is semantically equivalent to multiple other clusters in the table, \
+select "equivalent_to" to be the single cluster in the table that is most semantically equivalent to the "is_equivalent" cluster. \
+In other words, each cluster should be listed at most once in the "is_equivalent" position. \
+Clusters are permitted to appear multiple times in the "equivalent_to" position, if appropriate.
+"""
 
 # Parse arguments
 def parse_args():
@@ -175,23 +204,67 @@ def get_llm_clusters(markdown_tables,
     Returns:
         str: The cluster pairings discovered by the GPT model.
     """
-    
-    client = OpenAI()
 
     # Get single string of all markdown tables
     newline_joined_markdown_tables = '\n'.join(markdown_tables)
 
-    completion = client.chat.completions.create(
-    model=model,
-    messages=[
+    message = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": f"# TABLES\n{newline_joined_markdown_tables}"}
     ]
-    )
+
+    tokens = num_tokens_from_messages(message, model)
+
+    responses = []
+    
+    if tokens >= 63000:
+        print("Message length sufficiently large, creating sub-processes")
+        partitioned_markdown_tables = partition_prompt(message, model)
+
+        # For each partitioned markdown table, make separate API call
+        for markdown_table in partitioned_markdown_tables:
+            client = OpenAI()
+
+            completion = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"# TABLES\n{markdown_table}"}
+            ]
+            )
+            
+           # Append each API call message content to response string (removing the ```json and ending ```)
+            raw_string = completion.choices[0].message.content.replace('```json\n', '')
+            processed_string = raw_string.replace('```', '')
+            responses.append(processed_string)
+
+        # String cleaning and processing
+        responses = [s for s in responses if s.strip() and s != '[]']
+        responses = [eval(dictionary) for dictionary in responses if eval(dictionary)]
+
+        temp_response = ''
+
+        for response in responses:
+            for dictionary in response:
+                temp_response += json.dumps(dictionary) + ',\n'
+
+        response = '```json\n[' + temp_response[:-2] + ']\n```'
+
+
+    else:
+        client = OpenAI()
+                
+        completion = client.chat.completions.create(
+        model=model,
+        messages=message
+        )
+
+        response = completion.choices[0].message.content
 
     print(f'Cluster pairings discovered by {model}:')
-    print(f'{completion.choices[0].message.content}')
-    return completion.choices[0].message.content
+    print(f'{response}')
+    
+    return response
 
 
 def convert_string_to_dict(input_str, labels=['is_equivalent', 'equivalent_to'], max_existing_label=None):
@@ -511,7 +584,65 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
 
     print(f"Collapsing of cluster labels for {date_current} completed successfully.")
 
+def collapse_store(root_dir, topic, model, store_loc, n_clusters=60):
+    # Load the store DataFrame
+    store_df = pd.read_csv(os.path.join(root_dir, topic, store_loc))
+    dfs = [store_df]
 
+    # Create markdown tables
+    markdown_tables = [create_individual_markdown_table(store_df, n_samp=5, df_index='')]
+
+    cluster_num = dfs[0]["cluster_labels"].nunique()
+
+    llm_output = get_llm_clusters(markdown_tables, system_prompt=collapse_store_system_prompt.format(n_samp = 5), model=model)
+
+    # First, back up the old store
+    dfs[0].to_csv(os.path.join(root_dir, topic, store_loc[:-4] + '_backup.csv'), index=False)
+
+    labels = ['is_equivalent', 'equivalent_to']
+    max_existing_label = None
+
+    # Convert the LLM output string to a dictionary
+    mapping_dict = convert_string_to_dict(llm_output, labels=labels, max_existing_label=max_existing_label)
+    
+    # Check if length of cluster return is at least the necessary size
+    repeat = 0
+    while (len(mapping_dict) < cluster_num - int(n_clusters)) and repeat <= 2:
+        # If LLM did not return a sufficient number of pairs, prompt, update, and repeat until it does!
+        dfs[-1] = rename_cluster_labels(dfs[-1], mapping_dict)
+        markdown_tables = [create_individual_markdown_table(dfs[-1], n_samp=5, df_index='')]
+        cluster_num = dfs[0]["cluster_labels"].nunique()
+        llm_output = get_llm_clusters(markdown_tables, system_prompt=collapse_store_system_prompt.format(n_samp = 5), model=model)
+        mapping_dict = convert_string_to_dict(llm_output, labels=labels, max_existing_label=max_existing_label)
+
+        # Update the number of necessary pairings on each iteration
+        n_clusters = int(n_clusters) - (cluster_num - int(n_clusters))
+
+        repeat+=1
+        print(cluster_num, n_clusters)
+
+    # Once satisfied, truncate dictionary to appropriate length
+    print(cluster_num, n_clusters)
+    mapping_dict = dict(list(mapping_dict.items())[:cluster_num - int(n_clusters)])
+    dfs[-1] = rename_cluster_labels(dfs[-1], mapping_dict)
+
+    # Save the modified store DataFrame to a CSV file in the store_loc location
+    dfs[0].to_csv(os.path.join(root_dir, topic, store_loc), index=False)
+    print(f"Cluster labels in the store have been updated and saved to {store_loc}.") 
+
+    # Update previous dates' cluster labels based on combined frame store
+    print("Updating previous dates' cluster labels.")
+
+    # Find all files in directory and check if frame_cluster_results are present
+    for child in os.listdir(os.path.join(root_dir, topic)):
+        if os.path.exists(os.path.join(root_dir, topic, child, 'frame_cluster_results.csv')):
+            # Load csv, rename labels, and save
+            df = pd.read_csv(os.path.join(root_dir, topic, child, "frame_cluster_results.csv"))
+            df = rename_cluster_labels(df, mapping_dict)
+            df.to_csv(os.path.join(root_dir, topic, child, "frame_cluster_results.csv"), index=False)
+    
+    print("Previous frame clusterings successfully changed.")
+    
 if __name__ == '__main__':
     # Parse arguments
     args = parse_args()

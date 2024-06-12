@@ -4,6 +4,7 @@ from .get_frame_embeddings import get_embeddings
 from .cluster_frames import cluster_embeddings
 from .get_multiday_visualization import get_single_and_multiday_visualizations
 from .collapse_cluster_labels import collapse
+from .collapse_cluster_labels import collapse_store
 from .get_cluster_description import get_cluster_descriptions
 from .utils.load_llm_model import prepare_to_load_model
 from .utils.make_table_from_store import make_table
@@ -72,6 +73,7 @@ def process_command_line_args():
     parser.add_argument("--get_descriptions", action='store_true', help="Get cluster descriptions.")
     parser.add_argument("--collapse_within_day", action='store_true', help="Collapse cluster labels within-day.")
     parser.add_argument("--collapse_into_store", action='store_true', help="Collapse cluster labels into frame store.")
+    parser.add_argument("--collapse_store", default=0, help="Collapse cluster labels in frame store to a specified number.")
     parser.add_argument("--visualize", action='store_true', help="Visualize frame clusters across time.")
     parser.add_argument("--add_result_to_website", action='store_true', help="Add result to website.")
     
@@ -87,7 +89,7 @@ if __name__ == "__main__":
     store_dir = get_results_dir(args.root_dir, args.topic)
 
     # If extracting frames, getting embeddings, getting descriptions, or collapsing, add API key to environment
-    if args.extract_frames or args.get_embeddings or args.get_descriptions or args.collapse_within_day or args.collapse_into_store:
+    if args.extract_frames or args.get_embeddings or args.get_descriptions or args.collapse_within_day or args.collapse_into_store or args.collapse_store:
         prepare_to_load_model(api_key_loc=args.api_key_loc)
 
     # Check whether the results directory exists; if not, create it
@@ -152,6 +154,14 @@ if __name__ == "__main__":
                 store_loc='frame_store.csv'
                 )
     
+    if args.collapse_store:
+        print(f"Collapsing cluster labels in frame store for {args.topic} to {args.collapse_store}...")
+        collapse_store(root_dir=os.path.join(args.root_dir, 'frame_extraction_analysis', 'outputs'), 
+                       topic=args.topic, 
+                       model='gpt-4-turbo-preview', 
+                       store_loc='frame_store.csv', 
+                       n_clusters=args.collapse_store)
+
     if args.visualize:
         print("Visualizing frame clusters across time...")
         get_single_and_multiday_visualizations(frame_cluster_results_loc=os.path.join(args.root_dir, 'frame_extraction_analysis', 'outputs'),
