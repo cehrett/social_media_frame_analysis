@@ -12,7 +12,7 @@ from .utils.token_utils import partition_prompt
 # Define system prompt
 collapse_into_store_system_prompt = """\
 # CONTEXT
-You are a data scientist working for a research orfganization that studies disinformation campaigns. \
+You are a data scientist working for a research organization that studies disinformation campaigns. \
 Your team is analyzing a text to identify clusters of "frames" that are semantically equivalent to a pre-existing store of frames. \
 A "frame" is a factual or moral claim of broad social significance. \
 The user will provide two tables that represent clusters of "frames", Table 0 - Store and Table 1 - Corpus. \
@@ -139,7 +139,7 @@ def parse_args():
     parser.add_argument('--store_loc', type=str, default=None, help='Location of the frame store CSV file. If provided, the cluster labels will be collapsed into the store.')
     parser.add_argument('--root_dir', type=str, default='outputs', help='Root directory containing the data.')
     parser.add_argument('--api_key_loc', type=str, default=os.path.expanduser('~/.apikeys/openai_api_key.txt'), help='Location of the API key file.')
-    parser.add_argument('--model', type=str, default='gpt-4-turbo-preview', help='The OpenAI model to use for the chat completion.')
+    parser.add_argument('--model', type=str, default='gpt-4o', help='The OpenAI model to use for the chat completion.')
 
     return parser.parse_args()
 
@@ -192,7 +192,7 @@ def create_individual_markdown_table(df, n_samp=5, df_index='0'):
 
 def get_llm_clusters(markdown_tables, 
                      system_prompt, 
-                     model='gpt-4-turbo-preview'):
+                     model='gpt-4o'):
     """
     Retrieves the cluster pairings using an OpenAI model.
 

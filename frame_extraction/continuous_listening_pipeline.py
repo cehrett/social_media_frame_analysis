@@ -132,7 +132,7 @@ if __name__ == "__main__":
                                 output_file=os.path.join(results_dir, 'frame_cluster_results.csv'),
                                 api_key_loc=args.api_key_loc,
                                 n_samp=10,
-                                model='gpt-4-turbo-preview'
+                                model='gpt-4o'
                                 )    
 
 
@@ -141,7 +141,7 @@ if __name__ == "__main__":
         collapse(root_dir=os.path.join(args.root_dir, 'frame_extraction_analysis', 'outputs'),
                 topic=args.topic,
                 date_current=args.date,
-                model='gpt-4-turbo-preview',
+                model='gpt-4o',
                 across_days=False
                 )
         
@@ -150,7 +150,7 @@ if __name__ == "__main__":
         collapse(root_dir=os.path.join(args.root_dir, 'frame_extraction_analysis', 'outputs'),
                 topic=args.topic,
                 date_current=args.date,
-                model='gpt-4-turbo-preview',
+                model='gpt-4o',
                 store_loc='frame_store.csv'
                 )
     
