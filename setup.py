@@ -31,4 +31,8 @@ setup(
         'umap-learn',  # Uniform Manifold Approximation and Projection for Dimension Reduction
     ],
     python_requires='>=3.9.18',
+    include_package_data=True,
+    package_data={
+        'frame_extraction': ['utils/oai_system_message_template.txt']
+    },
 )
