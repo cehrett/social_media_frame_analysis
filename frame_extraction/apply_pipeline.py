@@ -70,7 +70,14 @@ def apply_simplified_pipeline(df, api_key_loc='./openai_api_key.txt'):
     
     # Add the cluster assignments to the original dataframe
     cluster_df = pd.read_csv(os.path.join(cwd, 'frame_cluster_results.csv'))
-    df['cluster_labels'] = cluster_df['cluster_labels']
+
+    # Group df2 by 'id' and aggregate the 'cluster_labels' into a list
+    cluster_df = cluster_df[['id','cluster_labels']]
+
+    cluster_df = cluster_df.groupby('id')['cluster_labels'].apply(list).reset_index()
+
+    # Merge the aggregated df2 with df1 on 'id'
+    df = pd.merge(df, cluster_df, on='id', how='left')
 
     # Finally drop id column
     df = df.drop(columns=['id'])
