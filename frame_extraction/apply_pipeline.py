@@ -51,7 +51,8 @@ def apply_simplified_pipeline(df, api_key_loc='./openai_api_key.txt'):
     # Take the newly created frame_extraction_results.csv file and append frames to df
     frames_df = pd.read_csv(os.path.join(cwd, 'frame_extraction_results.csv'))
     
-    df['frames'] = frames_df['frames']
+    frames_df = frames_df[['id','frames']].copy()
+    df = pd.merge(df, frames_df, on='id', how='left')
 
     print("Getting embeddings...")
     get_embeddings(embeddings_path=os.path.join(cwd, 'frame_embeddings.json'),
@@ -72,7 +73,7 @@ def apply_simplified_pipeline(df, api_key_loc='./openai_api_key.txt'):
     cluster_df = pd.read_csv(os.path.join(cwd, 'frame_cluster_results.csv'))
 
     # Group df2 by 'id' and aggregate the 'cluster_labels' into a list
-    cluster_df = cluster_df[['id','cluster_labels']]
+    cluster_df = cluster_df[['id','cluster_labels']].copy()
 
     cluster_df = cluster_df.groupby('id')['cluster_labels'].apply(list).reset_index()
 
