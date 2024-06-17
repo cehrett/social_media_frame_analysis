@@ -5,7 +5,7 @@ import ast
 import argparse
 import string
 import json
-from langchain_community.embeddings import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
 from .utils.load_llm_model import prepare_to_load_model
 
 

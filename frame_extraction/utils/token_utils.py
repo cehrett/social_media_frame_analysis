@@ -64,9 +64,10 @@ def partition_prompt(messages, model):
             table_indexes.append(index)
             index += len("## Table")
 
-    newline_count = 0
+    
     newline_indexes = []
     for idx in table_indexes:
+        newline_count = 0
         for i, char in enumerate(messages[1]["content"][idx:]):
             if char == '\n':
                 newline_count += 1
@@ -75,6 +76,7 @@ def partition_prompt(messages, model):
                     newline_indexes.append(newline_index)
     
     # Headers are between the table index and third newline index
+    import pdb; pdb.set_trace()
     headers = [messages[1]["content"][table_indexes[i]:newline_indexes[i]] for i in range(len(table_indexes))]
 
     # If there are two markdown tables present in the code, the first one in its entirety will be used
@@ -82,10 +84,11 @@ def partition_prompt(messages, model):
         predefined_messages = messages
 
         # Split rows from second table header down
-        rows = messages[1]["content"][table_indexes[1] + len(table_indexes[1]):].split('\n')
+        ## HEADER \n \n \n
+        rows = messages[1]["content"][newline_indexes[1]:].split('\n')
 
         # Predefined message is the entirety of markdown table 1 and the header table 2
-        predefined_messages[1]["content"] = messages[1]["content"][table_indexes[0]:(table_indexes[1] + len(table_indexes[1]))]
+        predefined_messages[1]["content"] = messages[1]["content"][table_indexes[0]:newline_indexes[1]]
 
         predefined_tokens = num_tokens_from_messages(predefined_messages, model)
 
@@ -107,7 +110,7 @@ def partition_prompt(messages, model):
 
     # If predefined tokens exceed 75% of the max_tokens throw a runtime error
     if (predefined_tokens >= max_tokens * 0.75):
-        raise RuntimeError("Size of prompt and markdown table exceed token limitation")
+        raise RuntimeError(f"Size of prompt and markdown table exceed token limitation. Predefined tokens: {predefined_tokens}")
 
     partitioned_messages = []
 

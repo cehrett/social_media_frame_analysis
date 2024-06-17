@@ -75,6 +75,8 @@ def create_markdown_table(df, n_samp=5, include_descriptions=False):
         markdown_table.append(row)
 
     markdown_table = '\n'.join(markdown_table) + '\n'
+
+    print(markdown_table)
     
     return markdown_table
 
@@ -144,7 +146,7 @@ def get_llm_descriptions(markdown_table,
         messages=message
         )
 
-        response += completion.choices[0].message.content
+        response = completion.choices[0].message.content
 
     print(f'Descriptions produced by {model}:')
     print(f'{response}')

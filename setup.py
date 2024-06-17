@@ -27,6 +27,7 @@ setup(
         'langchain',
         'langchain_community',
         'langchain_core',
+        'langchain-openai',
         'tiktoken',
         'umap-learn',  # Uniform Manifold Approximation and Projection for Dimension Reduction
     ],

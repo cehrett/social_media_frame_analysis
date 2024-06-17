@@ -41,7 +41,7 @@ def get_results_from_row(row,
     prompt = make_prompt_for_oai_narr_extr(text, random_labeled_data, system_template=system_prompt)
 
     try:
-        results = model(prompt)
+        results = model.invoke(prompt)
         narrs = ast.literal_eval(results.content)
     except:
         narrs = ['ERROR']

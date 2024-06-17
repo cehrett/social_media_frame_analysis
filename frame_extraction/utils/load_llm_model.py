@@ -97,7 +97,12 @@ def load_oai_model(model_id,
                    num_return_sequences,
                   ):
     # Model id indicates which OpenAI model to use.
-    from langchain.chat_models import ChatOpenAI
+    from langchain_openai import ChatOpenAI
+
+    # Initialize model_kwargs with the parameters
+    model_kwargs = {
+        "top_p": top_p
+    }
     
     # Prepare to forbid "bad words"
     # TODO include bad words penalty using the logit_bias parameter
@@ -106,7 +111,7 @@ def load_oai_model(model_id,
                    max_tokens=max_new_tokens,
                    n=num_return_sequences,
                    temperature=temperature,
-                   top_p=top_p,
+                   model_kwargs=model_kwargs,
                   )
     
     return model
