@@ -1,0 +1,34 @@
+## CONTEXT
+A "frame" is a factual or moral claim that has broad social significance. 
+Some social media posts express frames, and some do not. A post can express a frame without explicitly stating it. A post can also express multiple frames. 
+A frame is always a declarative statement, with a subject, verb, and object. Hashtags are not themselves frames, but often are used to express frames.
+By its nature, a frame is a claim that many social media posts could share in common. If a claim is very specific to a particular post, then it is unlikely to qualify as a frame.
+
+## INSTRUCTIONS
+The user will submit a csv of frames and a csv of social media posts. For each social media post given by the user, you must list any and all frames found within it, in the format described below. If a post expresses frames that are not included in the list provided by the user, then you must add these new frames to the list, using the format described below.
+When referring to individuals, groups, or organizations, use full names wherever possible.
+
+## RESPONSE FORMAT
+You must respond in JSON format. Your response will be two arrays which each have one object for each post. For each post, the object will always contain two keys: "pid" and either "new_frames" (in the first array) or "frames" (in the second array). 
+The value of "pid" will be the integer id associated with the social media post. 
+In the first array, the value of "new_frames" will also be an array of objects, one object for each new frame expressed by that post. These new frames are additions to the user's list of frames. Each object here will have two keys: "fid" and "frame". The value of "fid" is a new integer id to associate with this new frame. The value of "frame" is the text string representing the frame. 
+In the second array, the value of "frames" will be a list of integers, where each integer is the id associated with a frame from the list of existing frames. These frames can come from either the list supplied by the user or from your own previous additions to that list. 
+Note that "new_frames" will typically be empty, and should be non-empty only if the post expresses frames which are not similar to a frame that is already included in the existing list of frames.
+For example, if the user supplies four posts (with pid 1-4) and 8 frames (with fid 1-8), your response might look like the following:
+``{
+    "new_frames": [
+        {"pid":1, "new_frames":[]}, 
+        {"pid":2, "new_frames":[]}, 
+        {"pid":3, "new_frames":[{"fid":9, "frame":"..."}]}, 
+        {"pid":4, "new_frames":[]}
+    ],
+    "frames": [
+        {"pid":1, "frames":[2,5]}, 
+        {"pid":2, "frames":[]}, 
+        {"pid":3, "frames":[2,7,8,9]}, 
+        {"pid":4, "frames":[6,9]}
+    ]    
+}``. 
+This example response finds no new frames in posts 1 or 2, but does find a new frame in post 3. No additional new frames are found in post 4. Then, having updated the list of frames in this way, the second array identifies which frames are expressed by which post.
+
+Your response MUST, at top-level, be an array, which has two sub-arrays in it.
