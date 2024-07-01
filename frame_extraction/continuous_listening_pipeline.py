@@ -8,7 +8,8 @@ from .collapse_cluster_labels import collapse_store
 from .get_cluster_description import get_cluster_descriptions
 from .utils.load_llm_model import prepare_to_load_model
 from .utils.make_table_from_store import make_table
-
+from .utils.frame_store_utils import create_frame_store
+from .utils.frame_store_utils import update_cluster_counts
 import os
 
 # Get file path from topic and date
@@ -71,6 +72,8 @@ def process_command_line_args():
     parser.add_argument("--get_embeddings", action='store_true', help="Get embeddings.")
     parser.add_argument("--cluster_embeddings", action='store_true', help="Cluster embeddings.")
     parser.add_argument("--get_descriptions", action='store_true', help="Get cluster descriptions.")
+    parser.add_argument("--create_frame_store", action='store_true', help="Create a frame store.")
+    parser.add_argument("--update_cluster_counts", action='store_true', help="Updates the cluster counts for all day within the frame store.")
     parser.add_argument("--collapse_within_day", action='store_true', help="Collapse cluster labels within-day.")
     parser.add_argument("--collapse_into_store", action='store_true', help="Collapse cluster labels into frame store.")
     parser.add_argument("--collapse_store", default=0, help="Collapse cluster labels in frame store to a specified number.")
@@ -87,6 +90,7 @@ if __name__ == "__main__":
     original_data_loc = get_file_path(args.root_dir, args.topic, args.date)
     results_dir = get_results_dir(args.root_dir, args.topic, args.date)
     store_dir = get_results_dir(args.root_dir, args.topic)
+
 
     # If extracting frames, getting embeddings, getting descriptions, or collapsing, add API key to environment
     if args.extract_frames or args.get_embeddings or args.get_descriptions or args.collapse_within_day or args.collapse_into_store or args.collapse_store:
@@ -134,7 +138,7 @@ if __name__ == "__main__":
                                 n_samp=10,
                                 model='gpt-4o'
                                 )    
-
+        
 
     if args.collapse_within_day:
         print("Collapsing cluster labels within-day...")
@@ -150,7 +154,7 @@ if __name__ == "__main__":
         collapse(root_dir=os.path.join(args.root_dir, 'frame_extraction_analysis', 'outputs'),
                 topic=args.topic,
                 date_current=args.date,
-                model='gpt-4o',
+                model='gpt-4-turbo',
                 store_loc='frame_store.csv'
                 )
     
@@ -161,6 +165,26 @@ if __name__ == "__main__":
                        model='gpt-4-turbo-preview', 
                        store_loc='frame_store.csv', 
                        n_clusters=args.collapse_store)
+        
+    if args.create_frame_store:
+        print("Creating Frame Store...")
+
+        # Check whether the frame_store exists; warn if one already exists
+        if os.path.exists(os.path.join(store_dir, 'frame_store.csv')):
+            print("=== THERE IS A FRAME STORE PRESENT IN THIS LOCATION ===")
+            print("NOTE: This will override any previous Frame Store in this location!")
+
+        create_frame_store(store_dir=store_dir, 
+                           frame_cluster_path=os.path.join(results_dir, "frame_cluster_results.csv"), 
+                           date=args.date)
+        
+    if args.update_cluster_counts:
+        print("Gathering Cluster Counts...")
+
+        update_cluster_counts(store_dir=store_dir,
+            results_dir=results_dir,
+            date=args.date
+        )
 
     if args.visualize:
         print("Visualizing frame clusters across time...")

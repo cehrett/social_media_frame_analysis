@@ -8,6 +8,7 @@ import json
 import markdown
 from .utils.token_utils import num_tokens_from_messages
 from .utils.token_utils import partition_prompt
+from .utils.frame_store_utils import populate_store_examples
 
 # Define system prompt
 collapse_into_store_system_prompt = """\
@@ -40,6 +41,7 @@ In other words, each cluster in Table 1 - Corpus should appear exactly once in y
 Clusters from Table 0 - Store are permitted to appear multiple times, if appropriate; \
 i.e., it is possible that multiple clusters from Table 1 - Corpus are \
 all semantically equivalent to the same cluster in Table 0 - Store. \
+Wrap all values of the dictioary in a single quotes: ''.\
 """
 
 collapse_across_dates_system_prompt = """\
@@ -177,7 +179,12 @@ def create_individual_markdown_table(df, n_samp=5, df_index='0'):
         # If there are descriptions, get the cluster description (which is the same for all frames in the cluster)
         cluster_description = group['description'].iloc[0] if include_descriptions else ''
         # Sample up to `n_samp` unique texts, handling cases with fewer than `n_samp` texts available
-        sampled_texts = np.random.choice(group['frames'].unique(), size=min(n_samp, len(group['frames'].unique())), replace=False)
+        try:
+            sampled_texts = np.random.choice(group['frames'].unique(), size=min(n_samp, len(group['frames'].unique())), replace=False)
+        except:
+            # .unique() method does not work with frames store
+            sampled_texts = np.random.choice(group['frames'], size=min(n_samp, len(group['frames'])), replace=False)[0]
+
         # Format the row for this cluster_label
         if include_descriptions:
             row = f"| {cluster_label} | {cluster_description} | {'<br>'.join(sampled_texts)} |"
@@ -219,7 +226,7 @@ def get_llm_clusters(markdown_tables,
     
     if tokens >= 63000:
         print("Message length sufficiently large, creating sub-processes")
-        partitioned_markdown_tables = partition_prompt(message, model)
+        partitioned_markdown_tables = partition_prompt(message, model, 63000)
 
         # For each partitioned markdown table, make separate API call
         for markdown_table in partitioned_markdown_tables:
@@ -263,7 +270,7 @@ def get_llm_clusters(markdown_tables,
 
     print(f'Cluster pairings discovered by {model}:')
     print(f'{response}')
-    
+
     return response
 
 
@@ -408,8 +415,17 @@ def create_markdown_table_from_dict_and_dfs(mapping_dict, dfs, n_samp=5):
         df2_frames = dfs[-1][dfs[-1]['cluster_labels'] == int(df2_label)]['frames'].unique()[:n_samp]
         
         # Join the frames with line breaks for Markdown display
-        df1_frames_str = '<br>'.join(df1_frames)
-        df2_frames_str = '<br>'.join(df2_frames)
+        try:
+            df1_frames_str = '<br>'.join(df1_frames)
+        except Exception as err:
+            print(err)
+            df1_frames_str='<br>'.join(df1_frames[0])
+        
+        try:
+            df2_frames_str = '<br>'.join(df2_frames)
+        except Exception as err:
+            print(err)
+            df2_frames_str = '<br>'.join(df2_frames_str[0])
         
         # Add the row for this pair of labels
         if include_descriptions:
@@ -492,6 +508,10 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
     elif store_loc:
         # Load the store DataFrame
         store_df = pd.read_csv(os.path.join(root_dir, topic, store_loc))
+        
+        # New store format does not have example frames
+        #store_df = populate_store_examples(store_df, root_dir, topic, n_samples=5)
+
         dfs.insert(0, store_df)
 
     # Create individual Markdown tables for each DataFrame
@@ -512,6 +532,7 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
         system_prompt = collapse_into_store_system_prompt
     else:
         system_prompt = collapse_single_day_system_prompt
+    print(system_prompt)
     llm_output = get_llm_clusters(markdown_tables, system_prompt=system_prompt, model=model)
 
     # Get labels according to whether collapsing across days

@@ -52,9 +52,7 @@ def num_tokens_from_messages(messages, model, single_string=False):
 
 
 # Partition original messages into smaller messages and return
-def partition_prompt(messages, model):
-    max_tokens = 63000
-
+def partition_prompt(messages, model, max_tokens=63000):
     # Extract the table header from messages, assuming it is a markdown table
     table_indexes = []
     index = 0
@@ -76,7 +74,6 @@ def partition_prompt(messages, model):
                     newline_indexes.append(newline_index)
     
     # Headers are between the table index and third newline index
-    import pdb; pdb.set_trace()
     headers = [messages[1]["content"][table_indexes[i]:newline_indexes[i]] for i in range(len(table_indexes))]
 
     # If there are two markdown tables present in the code, the first one in its entirety will be used
