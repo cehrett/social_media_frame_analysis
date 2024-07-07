@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import random
 from ast import literal_eval
+import datetime
 
 def create_frame_store(store_dir, frame_cluster_path, date):
 
@@ -122,3 +123,66 @@ def update_cluster_counts(store_dir, results_dir, date):
 
     # Update and store
     store_df.to_csv(os.path.join(store_dir, 'frame_store.csv'), index=False)
+
+# Returns a list of the inactive clusters found in the frame store
+# reference_date serves as marker of the most recent date, where inactivity_period_length counts the days retroactively
+def get_inactive_clusters(root_dir, topic, reference_date, inactivity_period_length, min_activity=0):
+    # First load framestore and directory for clustered posts
+    topic_dir = os.path.join(root_dir, topic)
+    store_df = pd.read_csv(os.path.join(topic_dir, "frame_store.csv"))
+
+    # Grab unique cluster labels from store_df
+    unique_clusters = store_df['cluster_labels'].unique()
+
+    # Create dictionary with date and cluster label counts (for each date subdirectory)
+    # Get list of date dir from topic directory
+    date_dirs = [os.path.join(topic_dir, date_dir) for date_dir in os.listdir(topic_dir) if os.path.isdir(os.path.join(topic_dir, date_dir))]
+
+    # Create dataframe
+    count_df = pd.DataFrame(columns=unique_clusters)
+    count_df.index.name = "date"
+
+    # For each directory, access the frame_cluster_results.csv file
+    for dir in date_dirs:
+        if not os.path.exists(os.path.join(dir, 'frame_cluster_results.csv')):
+            raise FileNotFoundError(f"frame_cluster_results.csv file not found in {dir}.")
+        
+        date_df = pd.read_csv(os.path.join(dir, 'frame_cluster_results.csv'))
+
+        # Count the number of posts from the current clustered date and add to dictionary
+        count_dict = {}
+        for label in unique_clusters:
+            count_dict[label] = len(date_df[date_df["cluster_labels"] == label])
+        
+        # Add this row to the count dataframe
+        count_df.loc[str(dir)[len(str(topic_dir))+1:]] = count_dict
+
+
+    count_df.index = pd.to_datetime(count_df.index)
+
+    cluster_dict = dict.fromkeys(unique_clusters, 0)
+    total_files = 0
+
+    # Calculate resulting inactivity cutoff date
+    reference_date = datetime.datetime.strptime(reference_date, "%Y-%m-%d")
+    inactivity_cutoff = reference_date - datetime.timedelta(inactivity_period_length)
+
+    inactive_clusters = []
+
+    # For each date index, if it is between the two dates, check for the cluster activity
+    for index, row in count_df.iterrows():
+        if index >= inactivity_cutoff and index <= reference_date:
+            # If value for a cluster is less than inactivity_value, +1 to associated value
+            for label in cluster_dict.keys():
+                if int(row[label]) <= min_activity:
+                    cluster_dict[label] += 1
+
+            total_files += 1
+
+    # If cluster is marked 'inactive' for all files satisfying the range, it is inactive
+    for cluster in cluster_dict.keys():
+        if cluster_dict[cluster] == total_files:
+            inactive_clusters.append(cluster)
+
+    # Return the list of inactive_clusters
+    return inactive_clusters
