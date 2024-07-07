@@ -3,7 +3,6 @@ import os
 import sys
 import pandas as pd
 
-sys.path.append(r'C:\Users\coope\InternshipCode\social_media_frame_analysis')
 # Script to test functionalities with sample data
 parent_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -40,7 +39,9 @@ class SuppressStdout:
         if exc_type is not None:
             print(f"An exception occurred: {exc_value}")
         return False  # Propagate the exception if any
+    
 
+'''--- UNIT TESTS BEGIN ---'''
 
 # Unit test 1, frame extraction test
 from frame_extraction.extract_frames import process_and_save_posts
@@ -100,6 +101,7 @@ if args.test_list == "all" or 2 in test_list:
         print(e)
 
 
+'''--- UNIT TESTS END ---'''
 
 # At the end of the tests, clear all of the newly created data (if all test cases pass)
 if not error_present:
