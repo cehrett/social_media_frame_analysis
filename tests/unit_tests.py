@@ -3,6 +3,7 @@ import os
 import sys
 import pandas as pd
 
+sys.path.append(r'C:\Users\coope\InternshipCode\social_media_frame_analysis')
 # Script to test functionalities with sample data
 parent_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -25,19 +26,35 @@ if args.test_list != "all":
 # If error present in the test cases, do not remove generated data
 error_present = False
 
+# Context manager to suppress print statements from pre-defined functions
+class SuppressStdout:
+    def __enter__(self):
+        self.old_stdout = sys.stdout
+        self.devnull = open(os.devnull, 'w')
+        sys.stdout = self.devnull
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        sys.stdout = self.old_stdout
+        self.devnull.close()
+        if exc_type is not None:
+            print(f"An exception occurred: {exc_value}")
+        return False  # Propagate the exception if any
+
 
 # Unit test 1, frame extraction test
 from frame_extraction.extract_frames import process_and_save_posts
 if args.test_list == "all" or 1 in test_list:
     try:
-        process_and_save_posts(input_path=os.path.join(data_dir, "example_frames.csv"),
-                                results_dir=results_dir,
-                                labeled_data_path=os.path.join(requisite_dir,"labeled_data.csv"),
-                                text_col="text",
-                                api_key_loc=args.api_key_loc,
-                                raw_csv_or_intermediate='c',
-                                system_prompt_loc=os.path.join(requisite_dir, "oai_system_message_template.txt")
-                            )
+        with SuppressStdout():
+            process_and_save_posts(input_path=os.path.join(data_dir, "example_frames.csv"),
+                                    results_dir=results_dir,
+                                    labeled_data_path=os.path.join(requisite_dir,"labeled_data.csv"),
+                                    text_col="text",
+                                    api_key_loc=args.api_key_loc,
+                                    raw_csv_or_intermediate='c',
+                                    system_prompt_loc=os.path.join(requisite_dir, "oai_system_message_template.txt")
+                                )
         
         # Check for presence of "frame_extraction_results.csv", and ensure data entries are "viable"
         frame_df = pd.read_csv(os.path.join(results_dir, "frame_extraction_results.csv"))
