@@ -9,6 +9,7 @@ import markdown
 from .utils.token_utils import num_tokens_from_messages
 from .utils.token_utils import partition_prompt
 from .utils.frame_store_utils import populate_store_examples
+from .utils.frame_store_utils import get_inactive_clusters
 
 # Define system prompt
 collapse_into_store_system_prompt = """\
@@ -508,6 +509,9 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
     elif store_loc:
         # Load the store DataFrame
         store_df = pd.read_csv(os.path.join(root_dir, topic, store_loc))
+
+        # Drop inactive clusters for all days
+        store_df = store_df.drop(columns=get_inactive_clusters(root_dir,topic,date_current,100000))
         
         # New store format does not have example frames
         #store_df = populate_store_examples(store_df, root_dir, topic, n_samples=5)
