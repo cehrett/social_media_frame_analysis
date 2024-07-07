@@ -3,7 +3,6 @@ import os
 import sys
 import pandas as pd
 
-sys.path.append(r'C:\Users\coope\InternshipCode\social_media_frame_analysis')
 # Script to test functionalities with sample data
 parent_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -19,6 +18,12 @@ parser.add_argument("--api_key_loc", default='./openai_api_key.txt', help="Locat
 args = parser.parse_args()
 if args.test_list != "all":
     test_list = args.test_list.split(',')
+
+    for i in range(len(test_list)):
+        test_list[i] = int(test_list[i])
+
+# If error present in the test cases, do not remove generated data
+error_present = False
 
 
 # Unit test 1, frame extraction test
@@ -42,28 +47,59 @@ if args.test_list == "all" or 1 in test_list:
 
         print("Test 1 - Passed")
     except Exception as e:
+        error_present = True
         print("Test 1 - Failed")
         print(e)
 
 
+# Unit test 2, inactivity testing
+from frame_extraction.utils.frame_store_utils import get_inactive_clusters
+if args.test_list == "all" or 2 in test_list:
+    try:
+        # Test no activity
+        inactive_clusters_sub_1 = get_inactive_clusters(root_dir=data_dir,
+                                                  topic='inactiveClusterData', 
+                                                  reference_date='2024-08-04', 
+                                                  inactivity_period_length=3, 
+                                                  min_activity=0
+        )
+
+        # Test at most '5' activity
+        inactive_clusters_sub_2 = get_inactive_clusters(root_dir=data_dir,
+                                                  topic='inactiveClusterData', 
+                                                  reference_date='2024-08-04', 
+                                                  inactivity_period_length=3, 
+                                                  min_activity=5
+        )
+
+        # sub test 1 should only contain the cluster 6 and 2 should contain 4,5,6
+        if inactive_clusters_sub_1 != [6] or inactive_clusters_sub_2 != [4,5,6]:
+            raise RuntimeError("Inaccurate inactive clusters")
+        
+        print("Test 2 - Passed")
+    except Exception as e:
+        error_present = True
+        print("Test 2 - Failed")
+        print(e)
 
 
-# At the end of the tests, clear all of the newly created data
 
-# Traverse the directory tree
-for root, dirs, files in os.walk(results_dir, topdown=False):
-    # Remove each file
-    for file in files:
-        file_path = os.path.join(root, file)
-        os.unlink(file_path)
-        print(f"Removed file: {file_path}")
+# At the end of the tests, clear all of the newly created data (if all test cases pass)
+if not error_present:
+    # Traverse the directory tree
+    for root, dirs, files in os.walk(results_dir, topdown=False):
+        # Remove each file
+        for file in files:
+            file_path = os.path.join(root, file)
+            os.unlink(file_path)
+            print(f"Removed file: {file_path}")
 
-    # Remove each directory
-    for dir in dirs:
-        dir_path = os.path.join(root, dir)
-        os.rmdir(dir_path)
+        # Remove each directory
+        for dir in dirs:
+            dir_path = os.path.join(root, dir)
+            os.rmdir(dir_path)
 
-print(f"All contents removed from {results_dir}")
+    print(f"All contents removed from {results_dir}")
     
 
 
