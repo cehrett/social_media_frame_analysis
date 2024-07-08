@@ -42,7 +42,7 @@ In other words, each cluster in Table 1 - Corpus should appear exactly once in y
 Clusters from Table 0 - Store are permitted to appear multiple times, if appropriate; \
 i.e., it is possible that multiple clusters from Table 1 - Corpus are \
 all semantically equivalent to the same cluster in Table 0 - Store. \
-Wrap all values of the dictioary in a single quotes: ''.\
+Wrap all values of the dictioary in double quotes: "".\
 """
 
 collapse_across_dates_system_prompt = """\
@@ -511,7 +511,7 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
         store_df = pd.read_csv(os.path.join(root_dir, topic, store_loc))
 
         # Drop inactive clusters for all days
-        store_df = store_df.drop(columns=get_inactive_clusters(root_dir,topic,date_current,100000))
+        store_df = store_df[~store_df['cluster_labels'].isin(get_inactive_clusters(root_dir,topic,date_current,100000))]
         
         # New store format does not have example frames
         #store_df = populate_store_examples(store_df, root_dir, topic, n_samples=5)

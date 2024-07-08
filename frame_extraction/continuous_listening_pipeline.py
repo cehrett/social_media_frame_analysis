@@ -154,7 +154,7 @@ if __name__ == "__main__":
         collapse(root_dir=os.path.join(args.root_dir, 'frame_extraction_analysis', 'outputs'),
                 topic=args.topic,
                 date_current=args.date,
-                model='gpt-4-turbo',
+                model='gpt-4o',
                 store_loc='frame_store.csv'
                 )
     
