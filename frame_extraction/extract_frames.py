@@ -29,14 +29,12 @@ def process_and_save_posts(input_path,
         
         df_with_frames.to_csv(output_path, index=False, quoting=csv.QUOTE_ALL)
         
-        # Ensure intermediate_path exists in case of sufficiently small datasets of posts
-        if os.path.exists(intermediate_path):
-            os.remove(intermediate_path)
+        os.remove(intermediate_path)
         print(f"Frame extraction completed successfully. Results stored in {output_path}.")
     except Exception as e:
         print(f"An error occurred: {e}")
         traceback.print_exc()  # Print the full traceback
-        print(f"If frames were extracted prior to error, intermediate results are stored in {intermediate_path}.")
+        print(f"If frames were extracted prior to error, intermediate results are stored in {intermediate_path}, unless data was sufficiently small.")
         raise e
 
 if __name__ == "__main__":
