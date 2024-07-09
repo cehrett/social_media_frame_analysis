@@ -128,6 +128,10 @@ def process_posts(input_path,
     unique_df = df.loc[pd.isnull(df['frames'])].drop_duplicates(subset='normalized_text').reset_index()
     unique_df = unique_df.sample(frac=1).reset_index(drop=True)  # shuffle the unique_df, so we gather theories in random order
 
+    # Update chunk_size if given sufficiently small data.
+    if unique_df.shape[0] <= chunk_size:
+        chunk_size = unique_df.shape[0] // 2
+
     # Create chunks for the unique DataFrame
     chunks = [x for x in range(0, unique_df.shape[0], chunk_size)]
 
