@@ -14,6 +14,7 @@ requisite_dir = os.path.join(parent_dir, 'requisite_data')
 parser = argparse.ArgumentParser(description="Run unit tests on sample data")
 parser.add_argument("--test_list", default="all", help="Input unit tests to run separated by ','")
 parser.add_argument("--api_key_loc", default='./openai_api_key.txt', help="Location of text file containing OpenAI API key.")
+parser.add_argument("--clear_output_data", default=True, action='store_false', help="Delete all data produced by test script once complete.")
 
 args = parser.parse_args()
 if args.test_list != "all":
@@ -104,7 +105,7 @@ if args.test_list == "all" or 2 in test_list:
 '''--- UNIT TESTS END ---'''
 
 # At the end of the tests, clear all of the newly created data (if all test cases pass)
-if not error_present:
+if not error_present and args.clear_output_data:
     # Traverse the directory tree
     for root, dirs, files in os.walk(results_dir, topdown=False):
         # Remove each file
