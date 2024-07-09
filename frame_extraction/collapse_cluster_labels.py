@@ -511,7 +511,11 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
         store_df = pd.read_csv(os.path.join(root_dir, topic, store_loc))
 
         # Drop inactive clusters for all days
-        store_df = store_df[~store_df['cluster_labels'].isin(get_inactive_clusters(root_dir,topic,date_current,100000))]
+        inactive_clusters = get_inactive_clusters(root_dir,topic,date_current,100000)
+        
+        # Separate inactive and active stores
+        inactive_store_df = store_df[store_df['cluster_labels'].isin(inactive_clusters)]
+        store_df = store_df[~store_df['cluster_labels'].isin(inactive_clusters)]
         
         # New store format does not have example frames
         #store_df = populate_store_examples(store_df, root_dir, topic, n_samples=5)
@@ -536,7 +540,7 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
         system_prompt = collapse_into_store_system_prompt
     else:
         system_prompt = collapse_single_day_system_prompt
-    print(system_prompt)
+    
     llm_output = get_llm_clusters(markdown_tables, system_prompt=system_prompt, model=model)
 
     # Get labels according to whether collapsing across days
@@ -594,6 +598,7 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
             dfs[0] = pd.concat([dfs[0], new_label_df], ignore_index=True)
 
         # Save the modified store DataFrame to a CSV file in the store_loc location
+        dfs[0] = pd.concat([dfs[0], inactive_store_df], ignore_index=True)
         dfs[0].to_csv(os.path.join(root_dir, topic, store_loc), index=False)
         print(f"Cluster labels in the store have been updated and saved to {store_loc}.")        
 
