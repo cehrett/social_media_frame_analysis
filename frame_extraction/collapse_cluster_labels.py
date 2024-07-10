@@ -484,7 +484,7 @@ def create_html_output_log(markdown_tables, markdown_final_table, model, output_
     print(f"HTML output log file saved to {output_loc}.")
 
 
-def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=None):
+def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=None, ignore_inactive=False):
     # If across_days is True, then store_loc should not be provided
     if across_days and store_loc:
         raise ValueError("Cannot collapse cluster labels across days if a store_loc is provided.")
@@ -510,12 +510,13 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
         # Load the store DataFrame
         store_df = pd.read_csv(os.path.join(root_dir, topic, store_loc))
 
-        # Drop inactive clusters for all days
-        inactive_clusters = get_inactive_clusters(root_dir,topic,date_current,100000)
-        
-        # Separate inactive and active stores
-        inactive_store_df = store_df[store_df['cluster_labels'].isin(inactive_clusters)]
-        store_df = store_df[~store_df['cluster_labels'].isin(inactive_clusters)]
+        if ignore_inactive:
+            # Drop inactive clusters for all days
+            inactive_clusters = get_inactive_clusters(root_dir,topic,date_current,100000)
+            
+            # Separate inactive and active stores
+            inactive_store_df = store_df[store_df['cluster_labels'].isin(inactive_clusters)]
+            store_df = store_df[~store_df['cluster_labels'].isin(inactive_clusters)]
         
         # New store format does not have example frames
         #store_df = populate_store_examples(store_df, root_dir, topic, n_samples=5)
@@ -546,7 +547,11 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
     # Get labels according to whether collapsing across days
     if across_days or store_loc:
         labels = ['table_0_cluster_label', 'table_1_cluster_label']
-        max_existing_label = dfs[0]['cluster_labels'].max()
+
+        if ignore_inactive:
+            max_existing_label = max(inactive_clusters.append(dfs[0]['cluster_labels'].max()))
+        else:
+            max_existing_label = dfs[0]['cluster_labels'].max()
     else:
         labels = ['is_equivalent', 'equivalent_to']
         max_existing_label = None
