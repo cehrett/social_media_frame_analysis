@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clustering Analysis Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        .cluster {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .cluster-stats {
+            background-color: #e9f7ef;
+            border: 1px solid #aed6b5;
+            border-radius: 3px;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+        .frame {
+            background-color: #fff;
+            border: 1px solid #eee;
+            border-radius: 3px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .frame-count {
+            font-weight: bold;
+            color: #3498db;
+            margin-right: 10px;
+        }
+        .collapsible {
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+            padding: 18px;
+            width: 100%;
+            border: none;
+            text-align: left;
+            outline: none;
+            font-size: 15px;
+        }
+        .active, .collapsible:hover {
+            background-color: #2980b9;
+        }
+        .content {
+            padding: 0 18px;
+            display: none;
+            overflow: hidden;
+            background-color: #f1f1f1;
+        }
+        #chartContainer {
+            width: 100%;
+            height: 600px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Clustering Analysis Dashboard</h1>
+    <input type="file" id="csvFile" accept=".csv">
+    <div id="chartContainer">
+        <canvas id="scatterPlot"></canvas>
+    </div>
+    <div id="results"></div>
+
+    <script>
+        let chart;
+
+        document.getElementById('csvFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            Papa.parse(file, {
+                complete: function(results) {
+                    const data = results.data.slice(1); // Remove header row
+                    displayClusters(data);
+                    createScatterPlot(data);
+                },
+                header: true
+            });
+        });
+
+        function displayClusters(data) {
+            const clusters = {};
+            data.forEach(row => {
+                const { frames, id, cluster_labels, description } = row;
+                if (!clusters[cluster_labels]) {
+                    clusters[cluster_labels] = { 
+                        description: description, 
+                        frames: {}, 
+                        totalFrames: 0,
+                        uniquePosts: new Set()
+                    };
+                }
+                clusters[cluster_labels].frames[frames] = (clusters[cluster_labels].frames[frames] || 0) + 1;
+                clusters[cluster_labels].totalFrames += 1;
+                clusters[cluster_labels].uniquePosts.add(id);
+            });
+
+            let html = '';
+            for (const [label, cluster] of Object.entries(clusters)) {
+                const uniqueFramesCount = Object.keys(cluster.frames).length;
+                const uniquePostsCount = cluster.uniquePosts.size;
+
+                html += `
+                    <button class="collapsible">Cluster ${label} (${cluster.totalFrames} frames): ${cluster.description}</button>
+                    <div class="content">
+                        <div class="cluster">
+                            <div class="cluster-stats">
+                                <p><strong>Total Frames:</strong> ${cluster.totalFrames}</p>
+                                <p><strong>Unique Frames:</strong> ${uniqueFramesCount}</p>
+                                <p><strong>Unique Posts:</strong> ${uniquePostsCount}</p>
+                            </div>
+                            <h3>Frames:</h3>
+                            ${Object.entries(cluster.frames)
+                                .sort((a, b) => b[1] - a[1])
+                                .map(([frame, count]) => `
+                                    <div class="frame">
+                                        <span class="frame-count">[${count}]</span>${frame}
+                                    </div>
+                                `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+            document.getElementById('results').innerHTML = html;
+
+            // Add event listeners to collapsible elements
+            const coll = document.getElementsByClassName("collapsible");
+            for (let i = 0; i < coll.length; i++) {
+                coll[i].addEventListener("click", function() {
+                    this.classList.toggle("active");
+                    const content = this.nextElementSibling;
+                    if (content.style.display === "block") {
+                        content.style.display = "none";
+                    } else {
+                        content.style.display = "block";
+                    }
+                });
+            }
+        }
+
+        function createScatterPlot(data) {
+            const ctx = document.getElementById('scatterPlot').getContext('2d');
+            
+            // Prepare data for the chart
+            const chartData = data.map(row => ({
+                x: parseFloat(row.umap_1),
+                y: parseFloat(row.umap_2),
+                cluster: row.cluster_labels,
+                frame: row.frames
+            }));
+
+            // Get unique cluster labels
+            const uniqueClusters = [...new Set(chartData.map(item => item.cluster))];
+
+            // Generate a color for each cluster
+            const colorScale = generateColorScale(uniqueClusters.length);
+
+            // Create datasets for each cluster
+            const datasets = uniqueClusters.map((cluster, index) => ({
+                label: `Cluster ${cluster}`,
+                data: chartData.filter(item => item.cluster === cluster),
+                backgroundColor: colorScale[index],
+                pointRadius: 5,
+                pointHoverRadius: 7
+            }));
+
+            // Destroy existing chart if it exists
+            if (chart) {
+                chart.destroy();
+            }
+
+            // Create new chart
+            chart = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'UMAP Visualization of Clusters'
+                        },
+                        legend: {
+                            display: true,
+                            position: 'right'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const point = context.raw;
+                                    return [
+                                        `Cluster: ${point.cluster}`,
+                                        `Frame: ${point.frame}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'UMAP 1'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'UMAP 2'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generateColorScale(n) {
+            const colors = [];
+            for (let i = 0; i < n; i++) {
+                const hue = (i * 137.5) % 360;
+                colors.push(`hsl(${hue}, 70%, 60%)`);
+            }
+            return colors;
+        }
+    </script>
+</body>
+</html>
