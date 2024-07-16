@@ -37,7 +37,7 @@ The value for each key should be the frame (a string) that you produce to descri
 """
 
 
-def create_markdown_table(df, n_samp=5, include_descriptions=False):
+def create_markdown_table(df, n_samp=5, include_descriptions=False, chunk=100, verbose=False):
     """
     Creates individual Markdown table for a DataFrame.
 
@@ -51,10 +51,12 @@ def create_markdown_table(df, n_samp=5, include_descriptions=False):
     """
 
     # Initialize the Markdown table for the current DataFrame
-    markdown_table = [f"## Table", "| Cluster | Frames |", "| --- | --- |"]
+    markdown_table_header = [f"## Table", "| Cluster | Frames |", "| --- | --- |"]
     if include_descriptions:
-        markdown_table[1] += " Description |"
-        markdown_table[2] += " --- |"
+        markdown_table_header[1] += " Description |"
+        markdown_table_header[2] += " --- |"
+    markdown_table_rows = []
+    markdown_tables = []
 
     # Drop rows with missing 'frames' values
     df.dropna(subset=['frames'], inplace=True)
@@ -72,13 +74,29 @@ def create_markdown_table(df, n_samp=5, include_descriptions=False):
         row = f"| {cluster_label} | {'<br>'.join(sampled_texts)} |"
         if include_descriptions:
             row += f" {cluster_description} |"
-        markdown_table.append(row)
+        markdown_table_rows.append(row)
 
-    markdown_table = '\n'.join(markdown_table) + '\n'
+    # Chunk the markdown_table_rows
+    if chunk == 'None':
+        chunksize = len(markdown_table_rows)
+    else:
+        chunksize = chunk
 
-    print(markdown_table)
-    
-    return markdown_table
+    # Loop through length-chunksize chunks of markdown_table_rows
+    for i in range(0, len(markdown_table_rows), chunksize):
+        table_chunk = markdown_table_rows[i:i+chunksize]
+        markdown_table = markdown_table_header + table_chunk
+        markdown_table = '\n'.join(markdown_table) + '\n'
+        markdown_tables.append(markdown_table)
+
+    if verbose:
+        for mdt in markdown_tables:
+            print(mdt)
+
+    if chunk == 'None':
+        return markdown_tables[0]
+    else:
+        return markdown_tables
 
 
 def get_llm_descriptions(markdown_table, 
@@ -217,7 +235,7 @@ def display_markdown_cluster_descriptions(df, n_samp=5):
         n_samp (int): The number of unique texts to sample for each cluster.
     """
     # Create a Markdown table
-    markdown_table = create_markdown_table(df, n_samp=n_samp, include_descriptions=True)
+    markdown_table = create_markdown_table(df, n_samp=n_samp, include_descriptions=True, chunk='None')
     
     # Display the Markdown table
     display(Markdown(markdown_table))
@@ -293,14 +311,22 @@ def get_cluster_descriptions(input_file, output_file, api_key_loc, n_samp, model
     # Read the input file
     df = pd.read_csv(input_file)
     
-    # Create a Markdown table
-    markdown_table = create_markdown_table(df, n_samp=n_samp)
+    # Create an array of Markdown tables
+    markdown_tables = create_markdown_table(df, n_samp=n_samp)
 
-    descriptions = get_llm_descriptions(markdown_table, get_cluster_description_prompt, model=model)
-    
-    # Convert the descriptions to a dictionary
-    descriptions_dict = convert_string_to_dict(descriptions)
-    
+    # Initialize a dict which will store the descriptions
+    descriptions_dict = {}
+
+    for markdown_table in markdown_tables:
+        # Get cluster descriptions using the LLM
+        descriptions = get_llm_descriptions(markdown_table, get_cluster_description_prompt, model=model)
+        
+        # Convert the descriptions to a dictionary
+        new_descriptions_dict = convert_string_to_dict(descriptions)
+        
+        # Add the new descriptions to the existing descriptions_dict
+        descriptions_dict.update(new_descriptions_dict)
+        
     # Add the cluster descriptions to the DataFrame
     df = add_cluster_descriptions_to_df(df, descriptions_dict)
     

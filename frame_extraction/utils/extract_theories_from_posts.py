@@ -29,7 +29,8 @@ def get_results_from_row(row,
                          post_col, 
                          model, 
                          labeled_df,
-                         system_prompt
+                         system_prompt,
+                         verbose=False
                         ):
     # Define helper function that will extract theory from a row of the df.
     # This function will use a random sampling of the labeled data to create a FSL prompt each time it extracts theories from a post.
@@ -46,9 +47,10 @@ def get_results_from_row(row,
     except:
         narrs = ['ERROR']
 
-    clear_output(wait=True)
-    print('POST: ', text, '\n', 'FRAME: ', narrs)
-    time.sleep(0.05) 
+    if verbose:
+        clear_output(wait=True)
+        print('POST: ', text, '\n', 'FRAME: ', narrs)
+    time.sleep(0.01) 
     return(narrs)
 
 def process_posts(input_path, 
