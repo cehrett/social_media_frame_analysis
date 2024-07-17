@@ -10,6 +10,7 @@ from .utils.token_utils import num_tokens_from_messages
 from .utils.token_utils import partition_prompt
 from .utils.frame_store_utils import populate_store_examples
 from .utils.frame_store_utils import get_inactive_clusters
+import logging
 
 # Define system prompt
 collapse_into_store_system_prompt = """\
@@ -200,7 +201,8 @@ def create_individual_markdown_table(df, n_samp=5, df_index='0'):
 
 def get_llm_clusters(markdown_tables, 
                      system_prompt, 
-                     model='gpt-4o'):
+                     model='gpt-4o',
+                     max_prompt_length=56000):
     """
     Retrieves the cluster pairings using an OpenAI model.
 
@@ -222,10 +224,11 @@ def get_llm_clusters(markdown_tables,
     ]
 
     tokens = num_tokens_from_messages(message, model)
+    logging.info(f"Number of tokens: {tokens}")
 
     responses = []
     
-    if tokens >= 63000:
+    if tokens >= max_prompt_length:
         print("Message length sufficiently large, creating sub-processes")
         partitioned_markdown_tables = partition_prompt(message, model, 63000)
 
