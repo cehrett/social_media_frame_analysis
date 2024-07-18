@@ -10,6 +10,7 @@ from .utils.token_utils import num_tokens_from_messages
 from .utils.token_utils import partition_prompt
 from .utils.frame_store_utils import populate_store_examples
 from .utils.frame_store_utils import get_inactive_clusters
+import logging
 
 # Define system prompt
 collapse_into_store_system_prompt = """\
@@ -200,7 +201,8 @@ def create_individual_markdown_table(df, n_samp=5, df_index='0'):
 
 def get_llm_clusters(markdown_tables, 
                      system_prompt, 
-                     model='gpt-4o'):
+                     model='gpt-4o',
+                     max_prompt_length=56000):
     """
     Retrieves the cluster pairings using an OpenAI model.
 
@@ -222,10 +224,11 @@ def get_llm_clusters(markdown_tables,
     ]
 
     tokens = num_tokens_from_messages(message, model)
+    logging.info(f"Number of tokens: {tokens}")
 
     responses = []
     
-    if tokens >= 63000:
+    if tokens >= max_prompt_length:
         print("Message length sufficiently large, creating sub-processes")
         partitioned_markdown_tables = partition_prompt(message, model, 63000)
 
@@ -261,7 +264,7 @@ def get_llm_clusters(markdown_tables,
 
     else:
         client = OpenAI()
-                
+
         completion = client.chat.completions.create(
         model=model,
         messages=message
@@ -408,7 +411,7 @@ def create_markdown_table_from_dict_and_dfs(mapping_dict, dfs, n_samp=5):
         # If there are descriptions, get the cluster descriptions (which are the same for all frames in the cluster) for each df
         if include_descriptions:
             df1_description = dfs[0][dfs[0]['cluster_labels'] == int(df1_label)]['description'].iloc[0] if int(df1_label) in dfs[0]['cluster_labels'].unique() else ''
-            df2_description = dfs[-1][dfs[-1]['cluster_labels'] == int(df2_label)]['description'].iloc[0]
+            df2_description = dfs[-1][dfs[-1]['cluster_labels'] == int(df2_label)]['description'].iloc[0] if int(df2_label) in dfs[-1]['cluster_labels'].unique() else ''
 
         # Get up to `n_samp` unique frames for each label in dfs[0]
         df1_frames = dfs[0][dfs[0]['cluster_labels'] == int(df1_label)]['frames'].unique()[:n_samp]
@@ -603,7 +606,8 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
             dfs[0] = pd.concat([dfs[0], new_label_df], ignore_index=True)
 
         # Save the modified store DataFrame to a CSV file in the store_loc location
-        dfs[0] = pd.concat([dfs[0], inactive_store_df], ignore_index=True)
+        if ignore_inactive:
+            dfs[0] = pd.concat([dfs[0], inactive_store_df], ignore_index=True)
         dfs[0].to_csv(os.path.join(root_dir, topic, store_loc), index=False)
         print(f"Cluster labels in the store have been updated and saved to {store_loc}.")        
 

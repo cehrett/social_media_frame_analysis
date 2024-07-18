@@ -26,16 +26,24 @@ num_samples_inference = 400
 matplotlib.rcParams['lines.linestyle']=''
 
 
-def run_analysis(cluster_label_loc, flags_loc, author_id_loc, output_dir, flags, min_num_trials=5, use_cuda=True, device_num=0):
+def run_analysis(cluster_label_loc, 
+                 flags_loc,  
+                 output_dir, 
+                 flags, 
+                 author_id_loc=None,
+                 use_cuda=True, 
+                 device_num=0):
     device = torch.device(f'cuda:{device_num}') if use_cuda and torch.cuda.is_available() else torch.device('cpu')
     print(f'Using device: {device}')
+
+    if author_id_loc is None:
+        author_id_loc = flags_loc
 
     # Load and preprocess data
     df_cluster_labels, df_flags_for_each_author, df_author_id_for_each_post = at.load_data(cluster_label_loc, flags_loc, author_id_loc, flags)
     df_model, df_successes = at.preprocess_data(df_author_id_for_each_post, df_cluster_labels, flags)
     df_authors = df_author_id_for_each_post[['id','author_id']].groupby(['author_id'], as_index=False).size().\
     rename(columns={'size':'trials'}).merge(df_flags_for_each_author, how='inner', on=['author_id'])
-    # import pdb; pdb.set_trace()
 
     # Prepare data for the model
     data = at.prepare_model_data(df_model, flags, dtype, device)
@@ -93,7 +101,6 @@ if __name__ == "__main__":
         author_id_loc=args.author_id_loc,
         output_dir=args.output_dir,
         flags=args.flags,
-        min_num_trials=args.min_num_trials,
         use_cuda=args.cuda,
         device_num=args.device_num
     )
