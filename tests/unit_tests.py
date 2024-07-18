@@ -2,7 +2,10 @@ import argparse
 import os
 import sys
 import pandas as pd
+import shutil
+import ast
 
+sys.path.append(r'C:\Users\coope\InternshipCode\social_media_frame_analysis')
 # Script to test functionalities with sample data
 parent_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -93,7 +96,7 @@ if args.test_list == "all" or 2 in test_list:
 
         # sub test 1 should only contain the cluster 6 and 2 should contain 4,5,6
         if inactive_clusters_sub_1 != [6] or inactive_clusters_sub_2 != [4,5,6]:
-            raise RuntimeError("Inaccurate inactive clusters")
+            raise RuntimeError("Inaccurate inactive clusters.")
         
         print("Test 2 - Passed")
     except Exception as e:
@@ -101,6 +104,82 @@ if args.test_list == "all" or 2 in test_list:
         print("Test 2 - Failed")
         print(e)
 
+from frame_extraction.utils.frame_store_utils import create_frame_store
+if args.test_list == "all" or 3 in test_list:
+    try:
+        # Test frame store creation
+        create_frame_store(store_dir=results_dir, frame_cluster_path=os.path.join(data_dir, "FrameStoreData","2024-08-04","frame_cluster_results.csv"), date="2024-08-04")
+
+        frame_store_created = pd.read_csv(os.path.join(results_dir, "frame_store.csv"))
+        frame_store_original = pd.read_csv(os.path.join(data_dir,"FrameStoreData", "frame_store.csv"))
+
+        frame_store_created.to_csv(os.path.join(results_dir, "frame_store_created.csv"), index=False)
+
+        # Verify output
+        if not frame_store_created.equals(frame_store_original):
+            raise RuntimeError("Frame store output does not match intended output.")
+
+        print("Test 3 - Passed")
+    except Exception as e:
+        error_present = True
+        print("Test 3 - Failed")
+        print(e)
+
+from frame_extraction.utils.frame_store_utils import populate_store_examples
+if args.test_list == "all" or 4 in test_list:
+    try:
+        # Test population of frame store with examples
+        unpopulated_frame_store = pd.read_csv(os.path.join(data_dir, "FrameStoreData", "frame_store.csv"))
+        populated_frame_store = populate_store_examples(unpopulated_frame_store, root_dir=data_dir, topic="FrameStoreData", n_samples=3)
+
+        # Test populated frame store against correct frame store
+        populated_frame_store_original = pd.read_csv(os.path.join(data_dir, "FrameStoreData", "populated_frame_store.csv"))
+
+        populated_frame_store.to_csv(os.path.join(results_dir, "populated_frame_store.csv"), index=False)
+
+        # Analyze row equivalancy in produced frames
+        for index, row in populated_frame_store.iterrows():
+            if ast.literal_eval(populated_frame_store_original.iloc[index]['frames']) != row['frames']:
+                RuntimeError("Populated frame store output does not match intended output.")
+        
+        print("Test 4 - Passed")
+    except Exception as e:
+        error_present = True
+        print("Test 4 - Failed")
+        print(e)
+
+from frame_extraction.utils.frame_store_utils import update_cluster_counts
+if args.test_list == "all" or 5 in test_list:
+    try:
+        # Copy frame store to results dir, update and check
+        if not os.path.exists(os.path.join(results_dir, "frame_store.csv")):
+            shutil.copy(os.path.join(data_dir, "FrameStoreData", "frame_store.csv"), os.path.join(results_dir, "frame_store.csv"))
+
+        # Test the updating of cluster counts
+        update_cluster_counts(store_dir=results_dir,
+                              results_dir=os.path.join(data_dir, "FrameStoreData", '2024-08-05'),
+                              date='2024-08-05')
+        
+        # Compare to correct updated frame store
+        created_updated_frame_store = pd.read_csv(os.path.join(results_dir, "frame_store.csv"))
+        original_updated_frame_store = pd.read_csv(os.path.join(data_dir, "FrameStoreData", "multiday_frame_store.csv"))
+
+        # Rename copied file for identification purposes
+        if os.path.exists(os.path.join(results_dir, "multiday_frame_store.csv")):
+            os.unlink(os.path.join(results_dir, "multiday_frame_store.csv"))
+
+        os.rename(os.path.join(results_dir, "frame_store.csv"), os.path.join(results_dir, "multiday_frame_store.csv"))
+
+         # Analyze row equivalancy in produced frames
+        for index, row in original_updated_frame_store.iterrows():
+            if ast.literal_eval(original_updated_frame_store.iloc[index]['counts']) != ast.literal_eval(row['counts']):
+                raise RuntimeError("Updated frame store output does not match intended output.")
+
+        print("Test 5 - Passed")
+    except Exception as e:
+        error_present = True
+        print("test 5 - Failed")
+        print(e)
 
 '''--- UNIT TESTS END ---'''
 

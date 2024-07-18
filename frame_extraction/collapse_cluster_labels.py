@@ -11,6 +11,7 @@ from .utils.token_utils import partition_prompt
 from .utils.frame_store_utils import populate_store_examples
 from .utils.frame_store_utils import get_inactive_clusters
 import logging
+from .utils.frame_store_utils import combine_counts
 
 # Define system prompt
 collapse_into_store_system_prompt = """\
@@ -129,8 +130,10 @@ In all such semantically equivalent pairs, the higher of the two cluster labels 
 There should be one dictionary for each pair of semantically equivalent clusters in the table. \
 If you find that a cluster is semantically equivalent to multiple other clusters in the table, \
 select "equivalent_to" to be the single cluster in the table that is most semantically equivalent to the "is_equivalent" cluster. \
-In other words, each cluster should be listed at most once in the "is_equivalent" position. \
-Clusters are permitted to appear multiple times in the "equivalent_to" position, if appropriate.
+In other words, each cluster should be listed **AT MOST ONCE** in the "is_equivalent" position. \
+Clusters are permitted to appear multiple times in the "equivalent_to" position, if appropriate. \
+If a cluster has no semantically equivalent pairs, **DO NOT** include it in any of the dictionaries. \
+Wrap all values of the dictioary in double quotes: "".\
 """
 
 # Parse arguments
@@ -304,12 +307,16 @@ def convert_string_to_dict(input_str, labels=['is_equivalent', 'equivalent_to'],
         json_str = input_str[start_idx:end_idx+1]
     
     # Parse the JSON string into a Python object
-    data = json.loads(json_str)
+    data = json.loads(json_str) 
     
     # Create the dictionary from the list of dictionaries. If item[labels[0]] is 'new_cluster', then assign a new label.
     result_dict = {}
     new_label = max_existing_label if max_existing_label else 0
     for item in data:
+        # If a cluster is mapped to itself, identify it as a new cluster
+        if item[labels[0]] == item[labels[1]]:
+            item[labels[0]] = 'new_cluster'
+
         if item[labels[0]] == 'new_cluster':
             new_label += 1
             result_dict[new_label] = int(item[labels[1]])
@@ -410,14 +417,32 @@ def create_markdown_table_from_dict_and_dfs(mapping_dict, dfs, n_samp=5):
     for df1_label, df2_label in mapping_dict.items():
         # If there are descriptions, get the cluster descriptions (which are the same for all frames in the cluster) for each df
         if include_descriptions:
+            print(int(df1_label))
             df1_description = dfs[0][dfs[0]['cluster_labels'] == int(df1_label)]['description'].iloc[0] if int(df1_label) in dfs[0]['cluster_labels'].unique() else ''
             df2_description = dfs[-1][dfs[-1]['cluster_labels'] == int(df2_label)]['description'].iloc[0] if int(df2_label) in dfs[-1]['cluster_labels'].unique() else ''
 
+
         # Get up to `n_samp` unique frames for each label in dfs[0]
-        df1_frames = dfs[0][dfs[0]['cluster_labels'] == int(df1_label)]['frames'].unique()[:n_samp]
+        try:
+            df1_frames = dfs[0][dfs[0]['cluster_labels'] == int(df1_label)]['frames'].unique()[:n_samp]
+        except:
+            # .unique() method does not work with frames store
+            df1_frames = dfs[0][dfs[0]['cluster_labels'] == int(df1_label)]['frames'][:n_samp]
+            if df1_frames.empty:
+                df1_frames = []
+            else:
+                df1_frames = df1_frames.values[0]
+
         # Get up to n_samp unique frames for the corresponding label in dfs[1]
-        df2_frames = dfs[-1][dfs[-1]['cluster_labels'] == int(df2_label)]['frames'].unique()[:n_samp]
-        
+        try:
+            df2_frames = dfs[-1][dfs[-1]['cluster_labels'] == int(df2_label)]['frames'].unique()[:n_samp]
+        except:
+            df2_frames = dfs[-1][dfs[-1]['cluster_labels'] == int(df2_label)]['frames'][:n_samp]
+            if df2_frames.empty:
+                df2_frames = []
+            else:
+                df2_frames = df2_frames.values[0]
+
         # Join the frames with line breaks for Markdown display
         try:
             df1_frames_str = '<br>'.join(df1_frames)
@@ -520,9 +545,13 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
             # Separate inactive and active stores
             inactive_store_df = store_df[store_df['cluster_labels'].isin(inactive_clusters)]
             store_df = store_df[~store_df['cluster_labels'].isin(inactive_clusters)]
+        else:
+            # Assign default inactive_cluster values
+            inactive_clusters = []
+            inactive_store_df = store_df[store_df['cluster_labels'].isin(inactive_clusters)]
         
         # New store format does not have example frames
-        #store_df = populate_store_examples(store_df, root_dir, topic, n_samples=5)
+        store_df = populate_store_examples(store_df, root_dir, topic, n_samples=5)
 
         dfs.insert(0, store_df)
 
@@ -551,10 +580,8 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
     if across_days or store_loc:
         labels = ['table_0_cluster_label', 'table_1_cluster_label']
 
-        if ignore_inactive:
-            max_existing_label = max(inactive_clusters.append(dfs[0]['cluster_labels'].max()))
-        else:
-            max_existing_label = dfs[0]['cluster_labels'].max()
+        inactive_clusters.append(int(dfs[0]['cluster_labels'].max()))
+        max_existing_label = max(inactive_clusters)
     else:
         labels = ['is_equivalent', 'equivalent_to']
         max_existing_label = None
@@ -594,16 +621,26 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
 
         # Find which cluster labels are new (in dfs[-1] but not in dfs[0])
         new_labels = set(dfs[-1]['cluster_labels'].unique()) - set(dfs[0]['cluster_labels'].unique())
+        
         # For each new label, randomly samply up to 30 rows from dfs[-1] that have unique frames and add them to dfs[0].
         for label in new_labels:
             # Get a df that is a subset of df[-1] with only the rows that have the new label
             new_label_df = dfs[-1][dfs[-1]['cluster_labels'] == label]
             # Deduplicate with respect to the frames column
-            new_label_df = new_label_df.drop_duplicates(subset='frames')
+            #new_label_df = new_label_df.drop_duplicates(subset='frames')
             # Sample up to 30 rows
-            new_label_df = new_label_df.sample(min(30, len(new_label_df)))
+            #new_label_df = new_label_df.sample(min(30, len(new_label_df)))
+
+            # Add one row
+            new_label_df = new_label_df.iloc[[0]]
+            new_label_df = new_label_df.drop(['id'], axis=1)
+            new_label_df['counts'] = "{}"
+
             # Add the new_label_df to dfs[0]
             dfs[0] = pd.concat([dfs[0], new_label_df], ignore_index=True)
+
+        # Drop the frames column from the store
+        dfs[0] = dfs[0].drop(['frames'], axis=1)
 
         # Save the modified store DataFrame to a CSV file in the store_loc location
         if ignore_inactive:
@@ -623,9 +660,67 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
 
     print(f"Collapsing of cluster labels for {date_current} completed successfully.")
 
+# Function collapses and combines the rows in store_df with a mapping dictionary
+def combine_rows(store_df, mapping_dict):
+    print(store_df['cluster_labels'].unique())
+    for label in sorted(store_df['cluster_labels'].unique(), reverse=True):
+        # If the label is in the mapping_dict keys, then replace row
+        if label in mapping_dict:
+            # Algorithm steps:
+            # Take the key, replace the value with the key row
+            print(label)
+            # Copy, drop, and replace row
+            new_row = store_df.loc[store_df['cluster_labels'] == mapping_dict[label]]
+            store_df = store_df[store_df['cluster_labels'] != mapping_dict[label]]
+            # If row has already been combined, search in the mapping dict to find the current
+            new_row.index = store_df[store_df['cluster_labels'] == label].index
+                
+            store_df.loc[store_df['cluster_labels'] == label] = new_row
+
+
+    return store_df
+
+'''
+# Transforms normal mapping_dict into traversable mapping_dict for row replacement and consequent updates
+# Returns updated mapping_dict
+def traversable_mapping_dict(mapping_dict):
+
+    # Sort the mapping_dict for single-direction collapsing
+    keys = list(mapping_dict.keys())
+    keys.sort()
+    mapping_dict = {i: mapping_dict[i] for i in keys}
+    sub_mapping_dict = {}
+
+    # Check for cycles within the dictionary mapping (and remove connection)
+
+    # Use indexing through mapping_dict
+    for i in range(len(mapping_dict.keys())):
+        sub_mapping_dict = {}
+        key = list(mapping_dict.keys())[i]
+        value = mapping_dict[value]
+
+        # Loop through subsequent dictionary to find keys and values of value in current pair
+        if i != len(mapping_dict):
+            for sub_i in range(i+1, len(mapping_dict.keys())):
+                # If value is found in keys or values - replace with the key (unable to do that for key-to-key conversion...)
+                if key == list(mapping_dict.keys())[sub_i]:
+
+                if value == mapping_dict[list(mapping_dict.keys())[sub_i]]:
+
+'''         
+
+        
+        
+
 def collapse_store(root_dir, topic, model, store_loc, n_clusters=60):
     # Load the store DataFrame
     store_df = pd.read_csv(os.path.join(root_dir, topic, store_loc))
+
+    # First, back up the old store
+    store_df.to_csv(os.path.join(root_dir, topic, store_loc[:-4] + '_backup.csv'), index=False)
+    
+    # Populate store
+    store_df = populate_store_examples(store_df, root_dir, topic, n_samples=5)
     dfs = [store_df]
 
     # Create markdown tables
@@ -634,25 +729,27 @@ def collapse_store(root_dir, topic, model, store_loc, n_clusters=60):
     cluster_num = dfs[0]["cluster_labels"].nunique()
 
     llm_output = get_llm_clusters(markdown_tables, system_prompt=collapse_store_system_prompt.format(n_samp = 5), model=model)
-
-    # First, back up the old store
-    dfs[0].to_csv(os.path.join(root_dir, topic, store_loc[:-4] + '_backup.csv'), index=False)
-
     labels = ['is_equivalent', 'equivalent_to']
     max_existing_label = None
 
+    # Use list to keep track of collapsing for accurate frame renaming
+    mapping_dicts = []
+
     # Convert the LLM output string to a dictionary
-    mapping_dict = convert_string_to_dict(llm_output, labels=labels, max_existing_label=max_existing_label)
+    mapping_dicts.append({v: k for k, v in convert_string_to_dict(llm_output, labels=labels, max_existing_label=max_existing_label).items()})
     
     # Check if length of cluster return is at least the necessary size
     repeat = 0
-    while (len(mapping_dict) < cluster_num - int(n_clusters)) and repeat <= 2:
+    while (len(mapping_dicts[repeat]) < cluster_num - int(n_clusters)) and repeat <= 2:
+        # Update frame store cluster counts for each clustering
+        dfs[0] = combine_counts(dfs[0], mapping_dicts[repeat])
+        dfs[0] = combine_rows(dfs[0], mapping_dicts[repeat])
+
         # If LLM did not return a sufficient number of pairs, prompt, update, and repeat until it does!
-        dfs[-1] = rename_cluster_labels(dfs[-1], mapping_dict)
-        markdown_tables = [create_individual_markdown_table(dfs[-1], n_samp=5, df_index='')]
+        markdown_tables = [create_individual_markdown_table(dfs[0], n_samp=5, df_index='')]
         cluster_num = dfs[0]["cluster_labels"].nunique()
         llm_output = get_llm_clusters(markdown_tables, system_prompt=collapse_store_system_prompt.format(n_samp = 5), model=model)
-        mapping_dict = convert_string_to_dict(llm_output, labels=labels, max_existing_label=max_existing_label)
+        mapping_dicts.append({v: k for k, v in convert_string_to_dict(llm_output, labels=labels, max_existing_label=max_existing_label).items()})
 
         # Update the number of necessary pairings on each iteration
         n_clusters = int(n_clusters) - (cluster_num - int(n_clusters))
@@ -662,16 +759,20 @@ def collapse_store(root_dir, topic, model, store_loc, n_clusters=60):
 
     # Once satisfied, truncate dictionary to appropriate length
     print(cluster_num, n_clusters)
-    mapping_dict = dict(list(mapping_dict.items())[:cluster_num - int(n_clusters)])
-    dfs[-1] = rename_cluster_labels(dfs[-1], mapping_dict)
+    mapping_dict = dict(list(mapping_dicts[repeat].items())[:cluster_num - int(n_clusters)])
+    dfs[0] = combine_counts(dfs[0], mapping_dicts[repeat])
+    dfs[0] = combine_rows(dfs[0], mapping_dicts[repeat])
 
+    # Drop frame column
+    dfs[0] = dfs[0].drop(['frames'], axis=1)
+    import pdb; pdb.set_trace()
     # Save the modified store DataFrame to a CSV file in the store_loc location
     dfs[0].to_csv(os.path.join(root_dir, topic, store_loc), index=False)
-    print(f"Cluster labels in the store have been updated and saved to {store_loc}.") 
+    print(f"Cluster labels in the store have been updated and saved to {store_loc}.")
 
     # Update previous dates' cluster labels based on combined frame store
     print("Updating previous dates' cluster labels.")
-
+    import pdb; pdb.set_trace()
     # Find all files in directory and check if frame_cluster_results are present
     for child in os.listdir(os.path.join(root_dir, topic)):
         if os.path.exists(os.path.join(root_dir, topic, child, 'frame_cluster_results.csv')):
