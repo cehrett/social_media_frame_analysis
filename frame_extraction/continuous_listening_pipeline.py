@@ -75,7 +75,7 @@ def process_command_line_args():
     parser.add_argument("--create_frame_store", action='store_true', help="Create a frame store.")
     parser.add_argument("--collapse_within_day", action='store_true', help="Collapse cluster labels within-day.")
     parser.add_argument("--collapse_into_store", action='store_true', help="Collapse cluster labels into frame store.")
-    parser.add_argument("--ignore_inactive_clusters", default=False, action='store_true', help="Ignores inactive clusters when collapsing into frame store.")
+    parser.add_argument("--ignore_inactive_clusters", action='store_true', help="Ignores inactive clusters when collapsing into frame store.")
     parser.add_argument("--collapse_store", default=0, help="Collapse cluster labels in frame store to a specified number.")
     parser.add_argument("--update_cluster_counts", action='store_true', help="Updates the cluster counts for all day within the frame store.")
     parser.add_argument("--visualize", action='store_true', help="Visualize frame clusters across time.")
