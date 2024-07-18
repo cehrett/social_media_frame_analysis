@@ -186,7 +186,9 @@ def get_inactive_clusters(root_dir, topic, reference_date, inactivity_period_len
 
     # For each directory, access the frame_cluster_results.csv file
     for dir in date_dirs:
-        if index >= inactivity_cutoff and index <= reference_date:
+        date = dir[:-10]
+        date = datetime.datetime.strptime(date, "%Y-%m-%d")
+        if date >= inactivity_cutoff and date <= reference_date:
             if not os.path.exists(os.path.join(dir, 'frame_cluster_results.csv')):
                 raise FileNotFoundError(f"frame_cluster_results.csv file not found in {dir}.")
             
