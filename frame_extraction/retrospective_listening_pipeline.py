@@ -29,10 +29,10 @@ def process_command_line_args():
     # Data location arguments
     parser.add_argument('--data_loc', type=str, default='data.csv', help='Path to data file')
     parser.add_argument('--output_path', type=str, default='output/', help='Path to output directory, where results will be saved')
-    parser.add_argument("--system_prompt_loc", required=True, help="System prompt to give to LLM when extracting frames.")
+    parser.add_argument("--system_prompt_loc", default='./system_prompt.txt', help="System prompt to give to LLM when extracting frames.")
 
     # Frame extraction arguments
-    parser.add_argument("--labeled_data_path", required=True, 
+    parser.add_argument("--labeled_data_path", default='./labeled_data.csv', 
         help="Path to labeled data CSV. Should be a csv with a column for post text and a column for frames.")
     parser.add_argument("--text_col", default='Message', help="Name of the text column in the data file.")
     parser.add_argument("--api_key_loc", default='./openai_api_key.txt', help="Location of text file containing OpenAI API key.")
@@ -66,9 +66,9 @@ def process_command_line_args():
     parser.add_argument("--round_to_nearest", type=str, default='H', help="Rounding granularity for time data. Default 'H' is hourly.")
     parser.add_argument("--time_col", type=str, default='CreatedTime', help="Column name for the time data in the data file.")
     parser.add_argument("--num_fcs_to_display", type=int, default=8, help="Number of frame clusters to display in the visualization.")
-    parser.add_argument("--query_theories", default=['There is a conspiracy'], help="Semicolon-separated list of queries, \
-                        used to get frame-clusters relevant to the queries. These frame-clusters are included in the visualization.")
-    
+    parser.add_argument("--query_theories", type=str, default='There is a conspiracy', 
+                        help="Semicolon-separated list of queries, used to get frame-clusters relevant to the queries. These frame-clusters are included in the visualization.")
+
     # Main arguments: which parts of the pipeline to run
     parser.add_argument("--extract_frames", action='store_true', help="Extract frames.")
     parser.add_argument("--get_embeddings", action='store_true', help="Get embeddings.")
@@ -86,6 +86,7 @@ def process_command_line_args():
 if __name__ == '__main__':
     print("\nRetrospective Listening Pipeline\n")
     args = process_command_line_args()
+    args.query_theories = args.query_theories.split(';')
 
     # If extracting frames, getting embeddings, getting descriptions, or collapsing, add API key to environment
     if args.extract_frames or args.get_embeddings or args.get_descriptions:
