@@ -2,12 +2,9 @@
 
 from sklearn.metrics import adjusted_rand_score
 import hdbscan.prediction as hdb_predict
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from sklearn.manifold import TSNE
-import seaborn as sns  # This is optional, but it makes plots look nicer
 import datetime
 import plotly.graph_objects as go
 from sklearn.metrics.pairwise import cosine_similarity
@@ -308,7 +305,7 @@ def get_embeddings_of_query_theories(username,
                                      api_key_loc,
                                      query_theories: list[str], 
                                      skip_verification=False):
-    from langchain.embeddings import OpenAIEmbeddings
+    from langchain_openai import OpenAIEmbeddings
     from .load_llm_model import prepare_to_load_model
     
     # Define API key env var
