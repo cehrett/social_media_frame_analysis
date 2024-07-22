@@ -73,7 +73,7 @@ def parse_command_line_arguments():
     parser.add_argument("--device_num", default=0, help="CUDA device number to use for suspicious frame-cluster identification.")
 
     # Bayesian clustering settings
-    parser.add_argument("--needle_var", default=None, help="Needle variance for Bayesian clustering.")
+    parser.add_argument("--needle_var", default=None, help="Needle variable for Bayesian clustering.")
     parser.add_argument("--num_narratives", default=16, help="Number of narratives to identify using Bayesian clustering.")
     parser.add_argument("--component_weights", default=[10000, 10, 5, 1], help="Weights for the components of the Bayesian clustering model.")
     parser.add_argument("--n_repeats", default=40, help="Number of repeats for Bayesian clustering.")
