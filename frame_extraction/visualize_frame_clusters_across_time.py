@@ -33,6 +33,8 @@ def save_figures_to_html(query_theories, num_bins, figures_output_loc, fig1_html
 
 
 def generalized_date_parser(date):
+    if isinstance(date, (int, float)):
+        return pd.to_datetime(date, unit='s', utc=True)
     try:
         # Attempt to parse the date string using the dateutil parser
         return pd.to_datetime(parser.parse(str(date)), utc=True)
