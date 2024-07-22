@@ -41,12 +41,12 @@ def process_command_line_args():
         Only use (i) if previous frame extraction was interrupted before completion.")
 
     # Frame clustering arguments
-    parser.add_argument("--umap_dim", default=50, help="Number of dimensions for UMAP.")
-    parser.add_argument("--min_cluster_size", default=10, help="Minimum cluster size for HDBSCAN.")
-    parser.add_argument("--id_col", default='UniversalMessageId', help="Name of the id column in the data file.")
+    parser.add_argument("--umap_dim", type=int, default=50, help="Number of dimensions for UMAP.")
+    parser.add_argument("--min_cluster_size", type=int, default=10, help="Minimum cluster size for HDBSCAN.")
+    parser.add_argument("--id_col", type=str, default='UniversalMessageId', help="Name of the id column in the data file.")
 
     # Suspicious cluster identification arguments
-    parser.add_argument("--flags", required=True, nargs='+',
+    parser.add_argument("--flags", default=[], nargs='+',
                         help="List of flags to use for suspicious cluster identification. Headers of flag cols in original data.")
     
     # Bayesian clustering arguments
@@ -62,11 +62,11 @@ def process_command_line_args():
     parser.add_argument("--cholesky_rank", type=int, default=2, help="Cholesky rank for the Bayesian clustering.")
 
     # Visualization arguments
-    parser.add_argument("--num_bins", default=12, help="Number of time bins into which to divide the data, for visualization.")
-    parser.add_argument("--round_to_nearest", default='H', help="Rounding granularity for time data. Default 'H' is hourly.")
-    parser.add_argument("--time_col", default='CreatedTime', help="Column name for the time data in the data file.")
-    parser.add_argument("--num_fcs_to_display", default=8, help="Number of frame clusters to display in the visualization.")
-    parser.add_argument("--query_theories", required=True, help="Semicolon-separated list of queries, \
+    parser.add_argument("--num_bins", type=int, default=12, help="Number of time bins into which to divide the data, for visualization.")
+    parser.add_argument("--round_to_nearest", type=str, default='H', help="Rounding granularity for time data. Default 'H' is hourly.")
+    parser.add_argument("--time_col", type=str, default='CreatedTime', help="Column name for the time data in the data file.")
+    parser.add_argument("--num_fcs_to_display", type=int, default=8, help="Number of frame clusters to display in the visualization.")
+    parser.add_argument("--query_theories", default=['There is a conspiracy'], help="Semicolon-separated list of queries, \
                         used to get frame-clusters relevant to the queries. These frame-clusters are included in the visualization.")
     
     # Main arguments: which parts of the pipeline to run
