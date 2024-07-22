@@ -73,6 +73,114 @@ To run this script, you will need:
 
 This script uses the output of `find_suspicious_frame_clusters.py`, i.e. a csv containing the suspicious frame-clusters, to cluster the accounts. The intent is to facilitate finding accounts that are prone to focusing on suspicious frame-clusters, i.e. for the purposes of detecting coordinated inauthentic information operations.
 
+## Tutorial walkthrough
+
+Here, we walk through the application of `retrospective_listening_pipeline.py` to analyze activity in a single dataset of social media posts. Note that this pipeline is appropriate for cases where one is analyzing a complete and finalized dataset. When one is instead analyzing a dataset which is continuously growing -- as when one is engaged in ongoing listening -- one should instead use the `continuous_listening_pipeline.py` script. The two scripts are structured very similarly, though the former is somewhat simpler, which is why it is the focus of this tutorial.
+
+### Prerequisites
+1. Create a python environment and install the frame extraction library.
+2. Install the required packages (listed in `requirements.txt`.
+3. Have a dataset on which you wish to perform the analysis. Your dataset should be formatted as a CSV file with:
+    * One row per social media post
+    * A header row
+    * A column containing the text of the posts
+    * A column containing the date/time of the posts
+    * A column containing a unique ID for each post
+ 4. Activate your python environment.
+ 5. Navigate to the directory containing your data.
+
+This tutorial will assume that the CSV file is named `sample_data_for_frame_extraction.csv`, that the header of the text column is `text`, that the header of the date/time column is `time`, and the header of the post ID column is `id`.
+
+### Process
+It is possible to run all steps of the pipeline at one time, using a single command. However, for perspicacity, in this tutorial we run steps of the pipeline one by one.
+
+#### 1. Extract frames
+The first step of the pipeline is the extraction of frames from the posts' text. This is accomplished as follows:
+
+``` python
+python -m frame_extraction.retrospective_listening_pipeline \
+--data_loc sample_data_for_frame_extraction.csv \
+--output_path ./outputs \
+--system_prompt_loc ../../frame_extraction/utils/oai_system_message_template.txt \
+--labeled_data_path ../../data/labeled_data.csv \
+--text_col text \
+--api_key_loc ~/.apikeys/openai_api_key.txt \
+--extract_frames
+```
+
+Note that you may have to adjust the paths to the `oai_system_message_template.txt`, the `labeled_data.csv`, and the `openai_api_key.txt`. The former two files are supplied as part of this library, in the `data` folder. The OpenAI api key must be supplied by you, in a text file.
+
+#### 2. Get embeddings
+The next step is to get numerical embeddings for each frame that was produced in the first step. 
+
+``` python
+python -m frame_extraction.retrospective_listening_pipeline \
+--output_path ./outputs \
+--api_key_loc ~/.apikeys/openai_api_key.txt \
+--get_embeddings 
+```
+
+#### 3. Cluster embeddings
+Now that we have numerical embeddings, the next step is to cluster them, so that we will have clusters of frames. Each cluster should contain very closely related frames. Here, default clustering settings are used, but `umap_dim` and especially `min_cluster_size` may be changed to alter the fineness of the clusters.
+
+``` python
+python -m frame_extraction.retrospective_listening_pipeline \
+--output_path ./outputs \
+--id_col = id \
+--cluster_embeddings 
+```
+
+#### 4. Get descriptions of each frame-cluster
+The frame-clusters generated from step 3 have only a numerical label. We can use an LLM to get a human-readable description of each frame-cluster, which is more useful for analysis.
+``` python
+python -m frame_extraction.retrospective_listening_pipeline \
+--output_path ./outputs \
+--api_key_loc ~/.apikeys/openai_api_key.txt \
+--get_descriptions
+```
+
+#### 5. Get 2D embeddings, for visualization
+It is useful to reduce the numerical embeddings to only 2 dimensions, so that they can be plotted on human-readable plots.
+``` python
+python -m frame_extraction.retrospective_listening_pipeline \
+--output_path ./outputs \
+--get_2d_embeddings
+```
+
+#### 6. Visualize results
+Finally, we visualize the results of the frame extraction and clustering. This step produces an html file, `frame_clusters_across_time.html`, which may be viewed through a browser to load interactive plots. Note that this step takes an input `query_theories` -- you can input queries such as e.g. `There is a conspiracy` in order to visualize frame-clusters which are especially relevant to that query.
+``` python
+python -m frame_extraction.retrospective_listening_pipeline \
+--data_loc sample_data_for_frame_extraction.csv \
+--output_path ./outputs \
+--time_col time \
+--id_col id \
+--visualize
+```
+
+#### One-step version
+The above six steps can be run via a single command, as follows:
+``` python
+python -m frame_extraction.retrospective_listening_pipeline \
+--data_loc sample_data_for_frame_extraction.csv \
+--output_path ./outputs \
+--system_prompt_loc ../../frame_extraction/utils/oai_system_message_template.txt \
+--labeled_data_path ../../data/labeled_data.csv --text_col text \
+--id_col id \
+--time_col time \
+--api_key_loc ~/.apikeys/openai_api_key.txt \
+--query_theories "There is a conspiracy" \
+--extract_frames \
+--get_embeddings \
+--cluster_embeddings \
+--get_descriptions \
+--get_2d_embeddings \
+--visualize
+```
+
+
+---
+
 To run this script, you will need:
 
 1. A csv containing the top unusual/suspicious frame-clusters, as output by the script `find_suspicious_frame_clusters.py`.
