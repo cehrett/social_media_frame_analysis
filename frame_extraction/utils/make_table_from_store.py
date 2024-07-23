@@ -93,11 +93,22 @@ def make_table(clusters_input, output_file, n_samp, topic_dir, id_col='Universal
     # Add a `post` column with `populate_posts` function
     df = populate_posts(df, topic_dir, id_col=id_col, text_col=text_col, chunk_size=10000)
 
-    # Aggregate the `frames` and `post` columns by `cluster_labels`, so that there is one row per `cluster_labels` value
-    df = df.groupby('cluster_labels').agg({'frames': lambda x: '<hr>'.join(x), 'post': lambda x: '<hr>'.join(x)}).reset_index()
+    # Drop any rows with null id
+    df = df.dropna(subset=['id'])
+
+    # We've had two versions of the frame store; these if statements should accommodate both.
+    if 'frames' in df.columns:
+        # Aggregate the `frames` and `post` columns by `cluster_labels`, so that there is one row per `cluster_labels` value
+        df = df.groupby('cluster_labels').agg({'frames': lambda x: '<hr>'.join(x), 'post': lambda x: '<hr>'.join(x)}).reset_index()
+    else:
+        # Aggregate the `post` column by `cluster_labels`, so that there is one row per `cluster_labels` value
+        df = df.groupby('cluster_labels').agg({'post': lambda x: '<hr>'.join(x)}).reset_index()
 
     # Drop all columns except 'cluster_labels', `post` and 'frames'
-    df = df[['cluster_labels', 'post', 'frames']]
+    if 'frames' in df.columns:
+        df = df[['cluster_labels', 'post', 'frames']]
+    else:
+        df = df[['cluster_labels', 'post']]
 
     # Drop the row corresponding to cluster label -1
     df = df[df['cluster_labels'] != -1]
