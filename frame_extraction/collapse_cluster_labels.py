@@ -205,7 +205,7 @@ def create_individual_markdown_table(df, n_samp=5, df_index='0'):
 def get_llm_clusters(markdown_tables, 
                      system_prompt, 
                      model='gpt-4o',
-                     max_prompt_length=56000):
+                     max_prompt_length=40000):
     """
     Retrieves the cluster pairings using an OpenAI model.
 
@@ -233,28 +233,46 @@ def get_llm_clusters(markdown_tables,
     
     if tokens >= max_prompt_length:
         print("Message length sufficiently large, creating sub-processes")
-        partitioned_markdown_tables = partition_prompt(message, model, 63000)
+        partitioned_markdown_tables = partition_prompt(message, model, max_tokens=max_prompt_length, num_tokens_for_second_table=8000)
+        print(f'Partitioned markdown tables into {len(partitioned_markdown_tables)} parts.')
 
         # For each partitioned markdown table, make separate API call
-        for markdown_table in partitioned_markdown_tables:
+        for i, markdown_table in enumerate(partitioned_markdown_tables):
             client = OpenAI()
 
-            completion = client.chat.completions.create(
-            model=model,
-            messages=[
+            message_part = [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"# TABLES\n{markdown_table}"}
-            ]
-            )
+                ]
             
-           # Append each API call message content to response string (removing the ```json and ending ```)
-            raw_string = completion.choices[0].message.content.replace('```json\n', '')
-            processed_string = raw_string.replace('```', '')
-            responses.append(processed_string)
+            count = 0
+            while True:
 
-        # String cleaning and processing
-        responses = [s for s in responses if s.strip() and s != '[]']
-        responses = [eval(dictionary) for dictionary in responses if eval(dictionary)]
+                completion = client.chat.completions.create(
+                    model=model,
+                    messages=message_part
+                )
+                
+                # Append each API call message content to response string (removing the ```json and ending ```)
+                raw_string = completion.choices[0].message.content.replace('```json\n', '')
+                processed_string = raw_string.replace('```', '')
+                if processed_string.strip() and processed_string != '[]':
+                    try:
+                        responses.append(eval(processed_string))
+                        break
+                    except SyntaxError as e:
+                        print(f"Error: {e}")
+                        print(f"Processed string: {processed_string}")
+                        print(f"Completion reason: {completion.choices[0].finish_reason}")
+                        count += 1
+                        if count > 5:
+                            raise ValueError("Error: Too many attempts to process response. Exiting...")
+                        else:
+                            print(f"Attempt {count} to process response.")
+                        
+                
+            # Print update
+            print(f"Iteration {i+1} of {len(partitioned_markdown_tables)} completed.")
 
         temp_response = ''
 
@@ -281,7 +299,7 @@ def get_llm_clusters(markdown_tables,
     return response
 
 
-def convert_string_to_dict(input_str, labels=['is_equivalent', 'equivalent_to'], max_existing_label=None):
+def convert_string_to_dict(input_str, labels=['is_equivalent', 'equivalent_to'], max_existing_label=None, cluster_labels=None):
     """
     Converts a specially formatted string containing JSON representation
     of a list of dictionaries into a Python dictionary with `labels[0]`
@@ -313,20 +331,20 @@ def convert_string_to_dict(input_str, labels=['is_equivalent', 'equivalent_to'],
     result_dict = {}
     new_label = max_existing_label if max_existing_label else 0
     for item in data:
-        # If a cluster is mapped to itself, identify it as a new cluster
-        if item[labels[0]] == item[labels[1]]:
-            item[labels[0]] = 'new_cluster'
-
-        if item[labels[0]] == 'new_cluster':
+        if str(item[labels[0]]) not in [str(cl) for cl in cluster_labels[0]]:
             new_label += 1
-            result_dict[new_label] = int(item[labels[1]])
+            if item[labels[1]] in cluster_labels[1]:
+                result_dict[new_label] = int(item[labels[1]])
         else:
             try:
                 cluster_label = int(item[labels[0]])
             except ValueError:
                 print(f'Error: Could not convert cluster label {item[labels[0]]} to int. Continuing...')
                 continue
-            result_dict[cluster_label] = int(item[labels[1]])
+            try:
+                result_dict[cluster_label] = int(item[labels[1]])
+            except ValueError:
+                print(f'Error: Could not convert cluster label {item[labels[1]]} to int. Continuing...')
     
     return result_dict
 
@@ -417,7 +435,6 @@ def create_markdown_table_from_dict_and_dfs(mapping_dict, dfs, n_samp=5):
     for df1_label, df2_label in mapping_dict.items():
         # If there are descriptions, get the cluster descriptions (which are the same for all frames in the cluster) for each df
         if include_descriptions:
-            print(int(df1_label))
             df1_description = dfs[0][dfs[0]['cluster_labels'] == int(df1_label)]['description'].iloc[0] if int(df1_label) in dfs[0]['cluster_labels'].unique() else ''
             df2_description = dfs[-1][dfs[-1]['cluster_labels'] == int(df2_label)]['description'].iloc[0] if int(df2_label) in dfs[-1]['cluster_labels'].unique() else ''
 
@@ -586,8 +603,11 @@ def collapse(root_dir, topic, date_current, model, across_days=False, store_loc=
         labels = ['is_equivalent', 'equivalent_to']
         max_existing_label = None
 
+    # Get list of cluster labels from each DataFrame
+    cluster_labels = [df['cluster_labels'].unique().tolist() for df in dfs]
+
     # Convert the LLM output string to a dictionary
-    mapping_dict = convert_string_to_dict(llm_output, labels=labels, max_existing_label=max_existing_label)    
+    mapping_dict = convert_string_to_dict(llm_output, labels=labels, max_existing_label=max_existing_label, cluster_labels=cluster_labels)    
 
     # Remap the cluster labels according to the LLM output and save the final table
     if across_days or store_loc:
