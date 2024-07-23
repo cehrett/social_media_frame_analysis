@@ -52,7 +52,7 @@ def num_tokens_from_messages(messages, model, single_string=False):
 
 
 # Partition original messages into smaller messages and return
-def partition_prompt(messages, model, max_tokens=63000):
+def partition_prompt(messages, model, max_tokens=63000, num_tokens_for_second_table=1000):
     # Extract the table header from messages, assuming it is a markdown table
     table_indexes = []
     index = 0
@@ -105,14 +105,10 @@ def partition_prompt(messages, model, max_tokens=63000):
         # First get system prompt and token length
         predefined_tokens = num_tokens_from_messages(predefined_messages, model)
 
-    # If predefined tokens exceed 75% of the max_tokens throw a runtime error
-    if (predefined_tokens >= max_tokens * 0.75):
-        raise RuntimeError(f"Size of prompt and markdown table exceed token limitation. Predefined tokens: {predefined_tokens}")
-
     partitioned_messages = []
 
     # Now loop through rows until max_tokens is reached, then start a new prompt message
-    usable_tokens = max_tokens - predefined_tokens
+    usable_tokens = num_tokens_for_second_table
     current_message = ''
 
     for row in rows:
@@ -129,7 +125,7 @@ def partition_prompt(messages, model, max_tokens=63000):
         else:
             partitioned_messages.append(current_message)
             current_message = row
-            usable_tokens = max_tokens - predefined_tokens - row_tokens
+            usable_tokens = num_tokens_for_second_table
     
     # If remaining current_message is not empty, append to partitioned_messages
     if len(current_message) != 0:
