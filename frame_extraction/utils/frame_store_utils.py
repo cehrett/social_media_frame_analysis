@@ -85,7 +85,7 @@ def populate_store_examples(store_df, root_dir, topic, n_samples):
                     temp_cluster_dict[key] = ['']
 
             # Apply the lambda function to update the 'frames' column
-            store_df['frames'] = store_df.apply(lambda x: x['frames'] + temp_cluster_dict.get(x['cluster_labels'], ['']), axis=1)
+            store_df['frames'] = store_df.apply(lambda x: x['frames'] + temp_cluster_dict.get(x['cluster_labels'], ['']) if isinstance(x['frames'], list) else [x['frames']] + temp_cluster_dict.get(x['cluster_labels'], ['']), axis=1)
 
     # Remove blank string added as placeholders
     store_df['frames'] = store_df['frames'].apply(lambda x: [frame for frame in x if frame != ''])
