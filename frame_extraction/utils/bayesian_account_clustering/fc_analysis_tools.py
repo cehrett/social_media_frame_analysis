@@ -59,7 +59,7 @@ def row_with_max_kld(group):
     return group.loc[group['kld'].idxmax()]
         
         
-def load_data(cluster_label_loc, flags_loc, author_id_loc, flags):
+def load_data(cluster_label_loc, flags_loc, author_id_loc, flags, user_id='user_id', clusters_to_remove=[-1], users_to_remove=[]):
     df_cluster_labels = pd.read_csv(cluster_label_loc)
     df_cluster_labels = df_cluster_labels[[col for col in df_cluster_labels.columns if col != 'embeddings']]
     
@@ -67,25 +67,56 @@ def load_data(cluster_label_loc, flags_loc, author_id_loc, flags):
     df_author_id_for_each_post = pd.read_csv(author_id_loc)  
     
     # Deduplicate and remove unneeded cols
-    df_flags_for_each_author = df_flags_for_each_author[['author_id'] + flags].groupby('author_id').agg(any).reset_index() 
+    df_flags_for_each_author = df_flags_for_each_author[[user_id] + flags].groupby(user_id).agg(any).reset_index() 
+
+    # Remove clusters that are not to be considered from df_cluster_labels
+    df_cluster_labels = df_cluster_labels[~df_cluster_labels['cluster_labels'].isin(clusters_to_remove)]
+
+    # Drop users that are not to be considered from df_author_id_for_each_post
+    df_author_id_for_each_post = df_author_id_for_each_post[~df_author_id_for_each_post[user_id].isin(users_to_remove)]
+
+    # Drop na users from df_author_id_for_each_post
+    df_author_id_for_each_post = df_author_id_for_each_post.dropna(subset=[user_id])
     
     return df_cluster_labels, df_flags_for_each_author, df_author_id_for_each_post
 
 
-def preprocess_data(df_author_id_for_each_post, df_cluster_labels, flags):
-    # import pdb; pdb.set_trace()
-    merged_df = pd.merge(df_author_id_for_each_post, df_cluster_labels, on='id')
-    df_successes = merged_df.groupby(['author_id', 'cluster_labels']).size().reset_index(name='successes')
+def preprocess_data(df_author_id_for_each_post, df_cluster_labels, flags, user_id='user_id', post_id='post_id'):
+    merged_df = pd.merge(df_author_id_for_each_post, df_cluster_labels, left_on=post_id, right_on='id')
+    df_successes = merged_df.groupby([user_id, 'cluster_labels']).size().reset_index(name='successes')
+    # df_successes now has a row for each combination of user_id and cluster_labels (where the user has a post in that cluster).
+    # The 'successes' column is the number of posts the user has in that cluster.
 
     flag_set = set(flags) 
-    df_authors_long = df_author_id_for_each_post.melt(id_vars=[col for col in df_author_id_for_each_post.columns if col not in flags], var_name='flag', value_name='has_flag').query('flag in @flag_set')
+    df_authors_long = df_author_id_for_each_post.melt(
+        id_vars=[col for col in df_author_id_for_each_post.columns if col not in flags],
+        var_name='flag',
+        value_name='has_flag'
+    ).query('flag in @flag_set')
+    # df_authors_long now has a row for each combination of post_id and flag. That is, there is one row per post per flag.
 
-    df_model = df_successes.merge(df_authors_long, how='left', on=['author_id']).groupby(['cluster_labels', 'flag']).agg({'has_flag': 'sum', 'author_id': 'nunique'}).rename(columns={'author_id': 'num_accounts'}).reset_index().pivot_table(index=['cluster_labels', 'num_accounts'], columns='flag', values='has_flag').reset_index()
+    df_authors_long.drop_duplicates(subset=[user_id,'flag'], keep='first', inplace=True)
+    # df_authors_long now has a row for each user_id and flag. That is, there is one row per user per flag.
+    # You can think of df_authors_long as a lookup table for whether a user has a flag.
+
+    # Drop unneeded cols
+    df_authors_long = df_authors_long[[user_id, 'flag', 'has_flag']]
+
+    # Merge successes with df_authors_long to produce df_model
+    df_model = df_successes.merge(df_authors_long, how='left', on=[user_id]) \
+                          .groupby(['cluster_labels', 'flag']) \
+                          .agg({'has_flag': 'sum', user_id: 'nunique'}) \
+                          .rename(columns={user_id: 'num_accounts'}) \
+                          .reset_index() \
+                          .pivot_table(index=['cluster_labels', 'num_accounts'], columns='flag', values='has_flag') \
+                          .reset_index()
+    # df_model has a row for each cluster_labels value. 
+    # It has a col for each flag, giving the number of users with that cluster_label and that flag.
+    # It also has a col for the number of users with that cluster_label.
     
     # Convert flag columns to numeric
     for flag in flags:
         df_model[flag] = pd.to_numeric(df_model[flag], errors='coerce').astype(int)
-    # import pdb; pdb.set_trace()
 
     return df_model, df_successes
 
@@ -111,7 +142,6 @@ def plot_posterior_coeffs(lambda_samples, observed_rates, axs, label, device, ep
     quantiles = 1/(1+np.exp(-quantiles))
 
     for ix, ax in enumerate(axs):
-        # import pdb; pdb.set_trace
         obs = observed_rates[...,ix]
         med = quantiles[1,...,ix]
         yerr = np.abs(quantiles[[0,2],...,ix].transpose((1,0)) - med[...,None]).transpose((1,0))
@@ -122,7 +152,8 @@ def plot_lambdas(samples, data, device, flags, output_dir):
     fig, axs = plt.subplots(nrows=len(flags), sharex=True, sharey=True)
     fig.set_size_inches(8,12)
 
-    axs = [axs]
+    if len(flags) == 1:
+        axs = [axs]
     lambda_global_samples = samples['lambda'][:,None].repeat(1,data['trials'].shape[0], 1)
     lambda_n_samples = samples['lambda_n']
     observed_rates = calculate_observed_rates(data, device)  
@@ -148,7 +179,6 @@ def prepare_model_data(df_model, flags, dtype, device):
     trials = torch.tensor(df_model.num_accounts.values, dtype=dtype).to(device)
 
     # successes 
-    # import pdb; pdb.set_trace()
     successes = torch.tensor(df_model[flags].values, dtype=dtype).to(device)
 
     # put trials and successes into a single data structure for use by the models below

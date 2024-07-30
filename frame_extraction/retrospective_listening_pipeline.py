@@ -1,11 +1,5 @@
 # Imports
-from .extract_frames import process_and_save_posts
-from .get_frame_embeddings import get_embeddings
-from .cluster_frames import cluster_embeddings
-from .get_cluster_description import get_cluster_descriptions
 from .utils.load_llm_model import prepare_to_load_model
-from .visualize_frame_clusters_across_time import visualize_frame_cluster_across_time
-from .utils.get_2d_embeddings import get_2d_embeddings
 
 import os
 import argparse
@@ -48,9 +42,12 @@ def process_command_line_args():
     # Suspicious cluster identification arguments
     parser.add_argument("--flags", default=[], nargs='+',
                         help="List of flags to use for suspicious cluster identification. Headers of flag cols in original data.")
+    parser.add_argument("--user_id", type=str, default='author_id', help="Name of the user id column in the data file.")  
+    parser.add_argument("--clusters_to_remove", default=[-1], nargs='+', help="List of clusters to remove from the analysis.")
+    parser.add_argument("--users_to_remove", default=['Anonymous', 'Anon'], nargs='+', help="List of users to remove from the analysis.")  
     
     # Bayesian clustering arguments
-    parser.add_argument("--needle_var", type=str, default='is_troll', 
+    parser.add_argument("--needle_var", type=str, default=None, 
                         help="Needle indicator for clustering. Header of col which is 1 for known trolls, 0 otherwise.")
     parser.add_argument("--num_narratives", type=int, default=16, help="Number of narratives to identify using the clustering algorithm.")
     parser.add_argument("--component_weights", default=[10000, 10, 5, 1], help="Weights for the components of the Bayesian clusters.")
@@ -77,6 +74,7 @@ def process_command_line_args():
     parser.add_argument("--get_2d_embeddings", action='store_true', help="Get 2D embeddings.")
     parser.add_argument("--get_suspicious_clusters", action='store_true', help="Get suspicious clusters.")
     parser.add_argument("--get_account_clusters", action='store_true', help="Get account clusters.")
+    parser.add_argument("--get_cluster_df", action='store_true', help="Get cluster dataframes.")
     parser.add_argument("--visualize", action='store_true', help="Visualize frame clusters across time.")
     
     args = parser.parse_args()
@@ -98,6 +96,7 @@ if __name__ == '__main__':
         print(f"Created directory: {args.output_path}")
     
     if args.extract_frames:
+        from .extract_frames import process_and_save_posts
         print("\nExtracting frames...")
         process_and_save_posts(
             input_path=args.data_loc, 
@@ -110,6 +109,7 @@ if __name__ == '__main__':
         )
 
     if args.get_embeddings:
+        from .get_frame_embeddings import get_embeddings
         print("\nGetting embeddings...")
         get_embeddings(
             embeddings_path=os.path.join(args.output_path, 'frame_embeddings.json'),
@@ -118,6 +118,7 @@ if __name__ == '__main__':
         )
         
     if args.cluster_embeddings:
+        from .cluster_frames import cluster_embeddings
         print("\nClustering embeddings...")
         cluster_embeddings(
             frames_path=os.path.join(args.output_path, 'frame_extraction_results.csv'),
@@ -129,6 +130,7 @@ if __name__ == '__main__':
         )
 
     if args.get_descriptions:
+        from .get_cluster_description import get_cluster_descriptions
         print("\nGetting cluster descriptions...")
         get_cluster_descriptions(
             input_file=os.path.join(args.output_path, 'frame_cluster_results.csv'),
@@ -139,6 +141,7 @@ if __name__ == '__main__':
         )
 
     if args.get_2d_embeddings:
+        from .utils.get_2d_embeddings import get_2d_embeddings
         print("\nGetting 2D embeddings...")
         get_2d_embeddings(
             embeddings_path=os.path.join(args.output_path, 'frame_embeddings.json'),
@@ -152,6 +155,9 @@ if __name__ == '__main__':
             cluster_label_loc=os.path.join(args.output_path, 'frame_cluster_results.csv'),
             flags_loc=args.data_loc,
             flags=args.flags,
+            user_id=args.user_id,
+            clusters_to_remove=args.clusters_to_remove,
+            users_to_remove=args.users_to_remove,
             output_dir=args.output_path,
             use_cuda=True,
             device_num=0,            
@@ -172,9 +178,24 @@ if __name__ == '__main__':
                             num_particles=args.num_particles,
                             dropout_rate=args.dropout_rate,
                             cholesky_rank=args.cholesky_rank,
+                            user_id=args.user_id,
+        )
+
+    if args.get_cluster_df:
+        from .utils.get_cluster_df import get_cluster_df
+        get_cluster_df(
+            frame_cluster_results_loc=os.path.join(args.output_path, 'frame_cluster_results.csv'),
+            original_data_loc=args.data_loc,
+            num_bins=args.num_bins,
+            time_col=args.time_col,
+            id_col=args.id_col,
+            user_id=args.user_id,
+            flags=args.flags,
+            output_loc=os.path.join(args.output_path, 'frame_clusters_across_time.csv'),
         )
 
     if args.visualize:
+        from .visualize_frame_clusters_across_time import visualize_frame_cluster_across_time
         print("\nVisualizing frame clusters across time...")
         visualize_frame_cluster_across_time(
             frame_cluster_results_loc=os.path.join(args.output_path, 'frame_cluster_results.csv'),

@@ -15,7 +15,7 @@ import pyro.distributions as dist
 import argparse
 
 # Local code
-import utils.bayesian_account_clustering.fc_analysis_tools as at
+from .utils.bayesian_account_clustering import fc_analysis_tools as at
 
 
 # Settings, perhaps not user-configurable
@@ -30,6 +30,10 @@ def run_analysis(cluster_label_loc,
                  flags_loc,  
                  output_dir, 
                  flags, 
+                 user_id='user_id',
+                 post_id='post_id',
+                 clusters_to_remove=[-1],
+                 users_to_remove=[],
                  author_id_loc=None,
                  use_cuda=True, 
                  device_num=0):
@@ -40,10 +44,22 @@ def run_analysis(cluster_label_loc,
         author_id_loc = flags_loc
 
     # Load and preprocess data
-    df_cluster_labels, df_flags_for_each_author, df_author_id_for_each_post = at.load_data(cluster_label_loc, flags_loc, author_id_loc, flags)
-    df_model, df_successes = at.preprocess_data(df_author_id_for_each_post, df_cluster_labels, flags)
-    df_authors = df_author_id_for_each_post[['id','author_id']].groupby(['author_id'], as_index=False).size().\
-    rename(columns={'size':'trials'}).merge(df_flags_for_each_author, how='inner', on=['author_id'])
+    df_cluster_labels, df_flags_for_each_author, df_author_id_for_each_post = at.load_data(
+        cluster_label_loc, 
+        flags_loc, 
+        author_id_loc, 
+        flags, 
+        user_id=user_id, 
+        clusters_to_remove=clusters_to_remove, 
+        users_to_remove=users_to_remove
+    )
+    df_model, df_successes = at.preprocess_data(df_author_id_for_each_post, 
+                                                df_cluster_labels, 
+                                                flags, 
+                                                user_id=user_id, 
+                                                post_id=post_id)
+    df_authors = df_author_id_for_each_post[[post_id,user_id]].groupby([user_id], as_index=False).size().\
+    rename(columns={'size':'trials'}).merge(df_flags_for_each_author, how='inner', on=[user_id])
 
     # Prepare data for the model
     data = at.prepare_model_data(df_model, flags, dtype, device)

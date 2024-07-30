@@ -17,10 +17,9 @@ from sklearn.metrics import roc_curve, auc
 import argparse
 
 # local code
-from utils.bayesian_account_clustering.diagnostics import ModelDiagnostics
-from utils.bayesian_account_clustering.data import ModelData, BatchIndices
-from utils.bayesian_account_clustering.model import AlphaNet, CoordinationModel
-from utils.bayesian_account_clustering import utils
+from .utils.bayesian_account_clustering.data import ModelData, BatchIndices
+from .utils.bayesian_account_clustering.model import AlphaNet, CoordinationModel
+from .utils.bayesian_account_clustering import utils
 
 def bayesian_clustering(needle_var, 
                         authors_path, 
@@ -34,7 +33,8 @@ def bayesian_clustering(needle_var,
                         batch_size, 
                         num_particles, 
                         dropout_rate, 
-                        cholesky_rank
+                        cholesky_rank,
+                        user_id='user_id'
                         ):
     pyro_version = '1.8.6'
     try:
@@ -62,7 +62,7 @@ def bayesian_clustering(needle_var,
     ## Dataset names
     columns = dict(
         # column in authors csv containing author unique identifiers (e.g. 'handle')
-        author_id_var = 'author_id',
+        author_id_var = user_id,
 
         # column in authors csv containing ground truth account group identifiers. 
         # Set to None if no ground truth labels are available.
@@ -122,7 +122,7 @@ def bayesian_clustering(needle_var,
     dd = model_data.df_model.copy()
     dd['sum_frames'] = dd[[col for col in dd.columns if isinstance(col,int)]].sum(axis=1)
 
-    corr_df = dd[[col for col in dd if not isinstance(col,int) and col not in ['author_id']]]
+    corr_df = dd[[col for col in dd if not isinstance(col,int) and col not in [user_id]]]
     print(corr_df.corr())
 
     # Set priors
@@ -253,57 +253,58 @@ def bayesian_clustering(needle_var,
 
 
     # Diagnostics
-    y_true = data['alphas_onehot'][:,1].cpu()
-    # Set up the figure and subplots
-    fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(18, 6))
+    if 'alphas_onehot' in data: # I.e. if we have needle data, we can do some diagnostics
+        y_true = data['alphas_onehot'][:,1].cpu()
+        # Set up the figure and subplots
+        fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(18, 6))
 
-    # Unsupervised loss curves
-    for ix, m in enumerate(ensemble):
-        df_tracking = pd.DataFrame(m['loss_curve'])
-        axes[0].plot(df_tracking.epoch, df_tracking.loss, label=ix)
-    axes[0].grid()
-    axes[0].legend(loc=1, title='ensemble iter')
-    axes[0].semilogy()
-    axes[0].set_xlabel('Epoch')
-    axes[0].set_ylabel('Negative ELBO')
-    axes[0].set_title('Unsupervised loss curves')
+        # Unsupervised loss curves
+        for ix, m in enumerate(ensemble):
+            df_tracking = pd.DataFrame(m['loss_curve'])
+            axes[0].plot(df_tracking.epoch, df_tracking.loss, label=ix)
+        axes[0].grid()
+        axes[0].legend(loc=1, title='ensemble iter')
+        axes[0].semilogy()
+        axes[0].set_xlabel('Epoch')
+        axes[0].set_ylabel('Negative ELBO')
+        axes[0].set_title('Unsupervised loss curves')
 
-    # Precision-Recall curve
-    p_not_cl0_avg = (sum([1-m['p_clust'][:,0] for m in ensemble]) / n_repeats).cpu()
-    for ix, m in enumerate(ensemble):
-        p_not_cl0 = (1-m['p_clust'][:,0]).cpu()
-        prec, rec, _ = precision_recall_curve(y_true, p_not_cl0)
-        axes[1].plot(rec, prec, color='blue', alpha=0.3, linestyle='dashed')
-    prec, rec, _ = precision_recall_curve(y_true.cpu(), p_not_cl0_avg)
-    avg_prec = average_precision_score(y_true.cpu(), p_not_cl0_avg)
-    axes[1].plot(rec, prec, label=r'$\bar P=$' + f"{avg_prec:0.2f}", color='blue')
-    axes[1].grid()
-    axes[1].set_aspect('equal')
-    axes[1].legend(loc=1)
-    axes[1].set_xlabel('Recall')
-    axes[1].set_ylabel('Precision')
-    axes[1].set_title('Detection based on avg. prob.\nof not being in cluster 0')
+        # Precision-Recall curve
+        p_not_cl0_avg = (sum([1-m['p_clust'][:,0] for m in ensemble]) / n_repeats).cpu()
+        for ix, m in enumerate(ensemble):
+            p_not_cl0 = (1-m['p_clust'][:,0]).cpu()
+            prec, rec, _ = precision_recall_curve(y_true, p_not_cl0)
+            axes[1].plot(rec, prec, color='blue', alpha=0.3, linestyle='dashed')
+        prec, rec, _ = precision_recall_curve(y_true.cpu(), p_not_cl0_avg)
+        avg_prec = average_precision_score(y_true.cpu(), p_not_cl0_avg)
+        axes[1].plot(rec, prec, label=r'$\bar P=$' + f"{avg_prec:0.2f}", color='blue')
+        axes[1].grid()
+        axes[1].set_aspect('equal')
+        axes[1].legend(loc=1)
+        axes[1].set_xlabel('Recall')
+        axes[1].set_ylabel('Precision')
+        axes[1].set_title('Detection based on avg. prob.\nof not being in cluster 0')
 
-    # ROC curves
-    for ix, m in enumerate(ensemble):
-        p_not_cl0 = (1 - m['p_clust'][:, 0]).cpu()
-        fpr, tpr, _ = roc_curve(y_true, p_not_cl0)
-        roc_auc = auc(fpr, tpr)
-        axes[2].plot(fpr, tpr, color='black', alpha=0.3, linestyle='dashed', label=f'ROC curve of model {ix+1} (area = {roc_auc:.2f})')
-    fpr_avg, tpr_avg, _ = roc_curve(y_true.cpu(), p_not_cl0_avg)
-    roc_auc_avg = auc(fpr_avg, tpr_avg)
-    axes[2].plot(fpr_avg, tpr_avg, color='blue', linewidth=3, label=f'Mean ROC (area = {roc_auc_avg:.2f})')
-    axes[2].plot([0, 1], [0, 1], color='navy', linestyle='--')
-    axes[2].grid()
-    axes[2].set_aspect('equal', adjustable='box')
-    axes[2].set_xlabel('False Positive Rate')
-    axes[2].set_ylabel('True Positive Rate')
-    axes[2].set_title('Receiver Operating Characteristic')
-    # axes[2].legend(loc="lower right")
-    fig.tight_layout()
+        # ROC curves
+        for ix, m in enumerate(ensemble):
+            p_not_cl0 = (1 - m['p_clust'][:, 0]).cpu()
+            fpr, tpr, _ = roc_curve(y_true, p_not_cl0)
+            roc_auc = auc(fpr, tpr)
+            axes[2].plot(fpr, tpr, color='black', alpha=0.3, linestyle='dashed', label=f'ROC curve of model {ix+1} (area = {roc_auc:.2f})')
+        fpr_avg, tpr_avg, _ = roc_curve(y_true.cpu(), p_not_cl0_avg)
+        roc_auc_avg = auc(fpr_avg, tpr_avg)
+        axes[2].plot(fpr_avg, tpr_avg, color='blue', linewidth=3, label=f'Mean ROC (area = {roc_auc_avg:.2f})')
+        axes[2].plot([0, 1], [0, 1], color='navy', linestyle='--')
+        axes[2].grid()
+        axes[2].set_aspect('equal', adjustable='box')
+        axes[2].set_xlabel('False Positive Rate')
+        axes[2].set_ylabel('True Positive Rate')
+        axes[2].set_title('Receiver Operating Characteristic')
+        # axes[2].legend(loc="lower right")
+        fig.tight_layout()
 
-    # Save the figure
-    plt.savefig(os.path.join('output', 'bayesian_clustering_results.png'))
+        # Save the figure
+        plt.savefig(os.path.join('output', 'bayesian_clustering_results.png'))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Bayesian Account Clustering")
