@@ -81,15 +81,21 @@ def load_data(cluster_label_loc, flags_loc, author_id_loc, flags, user_id='user_
     return df_cluster_labels, df_flags_for_each_author, df_author_id_for_each_post
 
 
-def preprocess_data(df_author_id_for_each_post, df_cluster_labels, flags, user_id='user_id', post_id='post_id'):
+def preprocess_data(df_author_id_for_each_post, 
+                    df_author_id_for_each_flag, 
+                    df_cluster_labels, 
+                    flags, 
+                    user_id='user_id', 
+                    post_id='post_id',
+                    ):
     merged_df = pd.merge(df_author_id_for_each_post, df_cluster_labels, left_on=post_id, right_on='id')
     df_successes = merged_df.groupby([user_id, 'cluster_labels']).size().reset_index(name='successes')
     # df_successes now has a row for each combination of user_id and cluster_labels (where the user has a post in that cluster).
     # The 'successes' column is the number of posts the user has in that cluster.
 
     flag_set = set(flags) 
-    df_authors_long = df_author_id_for_each_post.melt(
-        id_vars=[col for col in df_author_id_for_each_post.columns if col not in flags],
+    df_authors_long = df_author_id_for_each_flag.melt(
+        id_vars=[col for col in df_author_id_for_each_flag.columns if col not in flags],
         var_name='flag',
         value_name='has_flag'
     ).query('flag in @flag_set')

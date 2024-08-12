@@ -34,7 +34,8 @@ def bayesian_clustering(needle_var,
                         num_particles, 
                         dropout_rate, 
                         cholesky_rank,
-                        user_id='user_id'
+                        user_id='user_id',
+                        output_dir='./output',
                         ):
     pyro_version = '1.8.6'
     try:
@@ -251,6 +252,16 @@ def bayesian_clustering(needle_var,
         print(f"Fitting model {i+1} of {n_repeats}...")
         ensemble.append(fit_model())
 
+    # Get the mean of the cluster probabilities
+    p_clust_avg = sum([m['p_clust'] for m in ensemble]) / n_repeats
+    # Convert from tensor to pandas df with cols acct_clust_{i} for each cluster
+    p_clust_df = pd.DataFrame(p_clust_avg.cpu().numpy(), columns=[f'acct_clust_{i}' for i in range(num_components)])
+    # Merge the cluster probabilities with the original data
+    df_model = model_data.df_model.copy()
+    df_model = pd.concat([df_model, p_clust_df], axis=1)
+    # Save the results to a CSV file
+    df_model.to_csv(os.path.join(output_dir, 'account_cluster_probabilites.csv'), index=False)
+
 
     # Diagnostics
     if 'alphas_onehot' in data: # I.e. if we have needle data, we can do some diagnostics
@@ -305,6 +316,9 @@ def bayesian_clustering(needle_var,
 
         # Save the figure
         plt.savefig(os.path.join('output', 'bayesian_clustering_results.png'))
+
+    
+    return ensemble
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Bayesian Account Clustering")

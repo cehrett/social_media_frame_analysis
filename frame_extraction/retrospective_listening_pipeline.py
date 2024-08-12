@@ -42,6 +42,8 @@ def process_command_line_args():
     # Suspicious cluster identification arguments
     parser.add_argument("--flags", default=[], nargs='+',
                         help="List of flags to use for suspicious cluster identification. Headers of flag cols in original data.")
+    parser.add_argument("--flags_loc", type=str, default=None, help="Path to the flags file, which associates user ids to flags.")
+    parser.add_argument("--author_id_loc", type=str, default=None, help="Path to the author id file, which associates post ids to user ids.")
     parser.add_argument("--user_id", type=str, default='author_id', help="Name of the user id column in the data file.")  
     parser.add_argument("--clusters_to_remove", default=[-1], nargs='+', help="List of clusters to remove from the analysis.")
     parser.add_argument("--users_to_remove", default=['Anonymous', 'Anon'], nargs='+', help="List of users to remove from the analysis.")  
@@ -74,7 +76,7 @@ def process_command_line_args():
     parser.add_argument("--get_2d_embeddings", action='store_true', help="Get 2D embeddings.")
     parser.add_argument("--get_suspicious_clusters", action='store_true', help="Get suspicious clusters.")
     parser.add_argument("--get_account_clusters", action='store_true', help="Get account clusters.")
-    parser.add_argument("--get_cluster_df", action='store_true', help="Get cluster dataframes.")
+    parser.add_argument("--get_cluster_df", action='store_true', help="Get cluster dataframe for dashboard visualization.")
     parser.add_argument("--visualize", action='store_true', help="Visualize frame clusters across time.")
     
     args = parser.parse_args()
@@ -151,11 +153,17 @@ if __name__ == '__main__':
 
     if args.get_suspicious_clusters:
         from frame_extraction.find_suspicious_frame_clusters import run_analysis
+        if args.flags_loc is None:
+            args.flags_loc = args.data_loc
+        if args.author_id_loc is None:
+            args.author_id_loc = args.data_loc
         run_analysis(
             cluster_label_loc=os.path.join(args.output_path, 'frame_cluster_results.csv'),
-            flags_loc=args.data_loc,
+            flags_loc=args.flags_loc,
+            author_id_loc=args.author_id_loc,
             flags=args.flags,
             user_id=args.user_id,
+            post_id=args.id_col,
             clusters_to_remove=args.clusters_to_remove,
             users_to_remove=args.users_to_remove,
             output_dir=args.output_path,
@@ -179,6 +187,7 @@ if __name__ == '__main__':
                             dropout_rate=args.dropout_rate,
                             cholesky_rank=args.cholesky_rank,
                             user_id=args.user_id,
+                            output_dir=args.output_path,
         )
 
     if args.get_cluster_df:
@@ -186,11 +195,13 @@ if __name__ == '__main__':
         get_cluster_df(
             frame_cluster_results_loc=os.path.join(args.output_path, 'frame_cluster_results.csv'),
             original_data_loc=args.data_loc,
+            flags_loc=args.flags_loc,
             num_bins=args.num_bins,
             time_col=args.time_col,
             id_col=args.id_col,
             user_id=args.user_id,
             flags=args.flags,
+            clusters_to_drop=args.clusters_to_remove,
             output_loc=os.path.join(args.output_path, 'frame_clusters_across_time.csv'),
         )
 

@@ -53,9 +53,10 @@ def run_analysis(cluster_label_loc,
         clusters_to_remove=clusters_to_remove, 
         users_to_remove=users_to_remove
     )
-    df_model, df_successes = at.preprocess_data(df_author_id_for_each_post, 
-                                                df_cluster_labels, 
-                                                flags, 
+    df_model, df_successes = at.preprocess_data(df_author_id_for_each_post=df_author_id_for_each_post,
+                                                df_author_id_for_each_flag=df_flags_for_each_author, 
+                                                df_cluster_labels=df_cluster_labels, 
+                                                flags=flags, 
                                                 user_id=user_id, 
                                                 post_id=post_id)
     df_authors = df_author_id_for_each_post[[post_id,user_id]].groupby([user_id], as_index=False).size().\
