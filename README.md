@@ -165,7 +165,8 @@ python -m frame_extraction.retrospective_listening_pipeline \
 --data_loc sample_data_for_frame_extraction.csv \
 --output_path ./outputs \
 --system_prompt_loc ../../frame_extraction/utils/oai_system_message_template.txt \
---labeled_data_path ../../data/labeled_data.csv --text_col text \
+--labeled_data_path ../../data/labeled_data.csv \
+--text_col text \
 --id_col id \
 --time_col time \
 --api_key_loc ~/.apikeys/openai_api_key.txt \
