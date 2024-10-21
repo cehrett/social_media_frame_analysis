@@ -21,6 +21,24 @@ In addition to tools for automating frame extraction, this repository contains t
     
 The rest of this README file will describe each of the above sets of tools, along with documentation about how to run them. However, the easiest way to run the tools is to modify the script `full_pipeline.py`, and then run that script.
 
+## Installation
+
+1. Create and activate the environment:
+    ```bash
+    conda create -n FrameExtraction python=3.12
+    conda activate FrameExtraction
+    ```
+
+2. Clone the repository and install dependencies:
+    ```bash
+    git clone https://github.com/cehrett/social_media_frame_analysis
+    cd social_media_frame_analysis
+    pip install -r requirements.txt
+    pip install .
+    ```
+
+Now you're ready to use the library!
+
 ## Frame extraction script
 
 This script takes as input a data set of social media posts and returns as output a list, for each post, of frames found (by the LLM) in the post. The input is expected to be a .csv file containing (at least) a column labeled 'text', which is the column which will be used by the script for frame extraction, and a column 'id', which should be a unique identifier for each post. The output of the script is a file 'frames.csv' containing two columns: 'id', and 'frames'.
