@@ -22,6 +22,7 @@ In addition to tools for automating frame extraction, this repository contains t
 The rest of this README file will describe each of the above sets of tools, along with documentation about how to run them. However, the easiest way to run the tools is to modify the script `full_pipeline.py`, and then run that script.
 
 ## Installation
+Use Anaconda and git to install as follows.
 
 1. Create and activate the environment:
     ```bash
